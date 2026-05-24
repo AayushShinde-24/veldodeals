@@ -1,0 +1,70 @@
+
+> veldo-ai-sales-team-os@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.35:3000
+✓ Ready in 4.1s
+
+ GET /agents 200 in 8.7s (next.js: 837ms, proxy.ts: 3.0s, application-code: 4.9s)
+ GET /login 200 in 2.1s (next.js: 1304ms, proxy.ts: 20ms, application-code: 802ms)
+ GET / 200 in 35.8s (next.js: 17.3s, proxy.ts: 9.5s, application-code: 9.0s)
+ GET /dashboard 200 in 2.1s (next.js: 1136ms, proxy.ts: 415ms, application-code: 508ms)
+ GET /dashboard 200 in 9.4s (next.js: 20ms, proxy.ts: 300ms, application-code: 9.1s)
+ GET /dashboard 200 in 6.0s (next.js: 19ms, proxy.ts: 344ms, application-code: 5.7s)
+ GET /agent 200 in 4.9s (next.js: 729ms, proxy.ts: 781ms, application-code: 3.4s)
+ GET /api/veldo-agent/chat 404 in 6.4s (next.js: 1778ms, proxy.ts: 339ms, application-code: 4.3s)
+ GET /campaigns 200 in 5.2s (next.js: 317ms, proxy.ts: 1371ms, application-code: 3.5s)
+✓ Compiled in 11.6s
+✓ Compiled in 6.8s
+ GET /campaigns/new 404 in 42s (next.js: 29.0s, proxy.ts: 5.7s, application-code: 7.5s)
+ GET /campaigns 200 in 73s (next.js: 8.1s, proxy.ts: 28.7s, application-code: 36.2s)
+ GET /campaigns 200 in 48s (next.js: 520ms, proxy.ts: 12.9s, application-code: 34.7s)
+ GET /campaigns 200 in 48s (next.js: 774ms, proxy.ts: 13.0s, application-code: 34.4s)
+ GET /campaigns 200 in 51s (next.js: 6.0s, proxy.ts: 12.6s, application-code: 32.7s)
+ GET /campaigns 200 in 53s (next.js: 1262ms, proxy.ts: 12.5s, application-code: 39.5s)
+ GET /campaigns 200 in 55s (next.js: 16.2s, proxy.ts: 23.4s, application-code: 15.8s)
+✓ Compiled in 21.5s
+ GET /campaigns/new 404 in 67s (next.js: 21.0s, proxy.ts: 5.3s, application-code: 40s)
+ GET /campaigns 200 in 83s (next.js: 1665ms, proxy.ts: 1770ms, application-code: 80s)
+ GET /campaigns 200 in 89s (next.js: 4.6s, proxy.ts: 5.9s, application-code: 78s)
+ GET /campaigns 200 in 81s (next.js: 3.5s, proxy.ts: 719ms, application-code: 77s)
+ GET /campaigns 200 in 82s (next.js: 4.6s, proxy.ts: 1006ms, application-code: 77s)
+ GET /campaigns 200 in 89s (next.js: 4.7s, proxy.ts: 6.6s, application-code: 77s)
+○ Compiling /_error ...
+ GET /personalization 500 in 59s (proxy.ts: 650ms)
+ GET /campaigns 200 in 8.7s (next.js: 3.1s, proxy.ts: 2.4s, application-code: 3.1s)
+✓ Compiled in 75.1s
+ GET /campaigns 500 in 100s (proxy.ts: 10.6s)
+ GET /campaigns 500 in 2.1min (proxy.ts: 21.1s)
+ GET /campaigns 500 in 100s (proxy.ts: 11.1s)
+ GET /campaigns 500 in 100s (proxy.ts: 647ms)
+ GET /campaigns 500 in 100s (proxy.ts: 11.2s)
+ GET /logs 404 in 35.6s (next.js: 4.5s, proxy.ts: 23.8s, application-code: 7.3s)
+ GET /login 200 in 6.2s (next.js: 4.6s, proxy.ts: 352ms, application-code: 1173ms)
+ GET /signup 200 in 2.2s (next.js: 1268ms, proxy.ts: 22ms, application-code: 954ms)
+ GET /dashboard 200 in 5.6s (next.js: 556ms, proxy.ts: 234ms, application-code: 4.8s)
+ POST /signup 303 in 7.9s (next.js: 23ms, proxy.ts: 44ms, application-code: 7.8s)
+  └─ ƒ signUpAction({}) in 2103ms app/auth-actions.ts
+ GET /leads/import 200 in 5.6s (next.js: 495ms, proxy.ts: 423ms, application-code: 4.7s)
+ GET /lead-finder 200 in 2.0s (next.js: 235ms, proxy.ts: 351ms, application-code: 1419ms)
+ GET /leads 200 in 3.3s (next.js: 1263ms, proxy.ts: 253ms, application-code: 1833ms)
+✓ Compiled in 2.2s
+  Reload env: .env.local
+ GET /leads 200 in 2.8s (next.js: 574ms, proxy.ts: 1009ms, application-code: 1209ms)
+ GET /leads 200 in 2.4s (next.js: 11ms, proxy.ts: 201ms, application-code: 2.1s)
+ GET /leads?error=Apollo+request+failed+with+403 200 in 1979ms (next.js: 17ms, proxy.ts: 206ms, application-code: 1757ms)
+ POST /leads 303 in 6.0s (next.js: 269ms, proxy.ts: 317ms, application-code: 5.4s)
+  └─ ƒ generateLeadsAction({}) in 3294ms app/leads/actions.ts
+ GET /logs 404 in 1335ms (next.js: 145ms, proxy.ts: 294ms, application-code: 895ms)
+ GET /logs 404 in 1158ms (next.js: 48ms, proxy.ts: 189ms, application-code: 921ms)
+ GET /leads?error=Apollo+request+failed+with+403 200 in 1851ms (next.js: 11ms, proxy.ts: 206ms, application-code: 1633ms)
+ POST /leads?error=Apollo%20request%20failed%20with%20403 303 in 5.6s (next.js: 67ms, proxy.ts: 646ms, application-code: 4.9s)
+  └─ ƒ generateLeadsAction({}) in 3006ms app/leads/actions.ts
+ GET /leads?error=Apollo+request+failed+with+403 200 in 1230ms (next.js: 11ms, proxy.ts: 203ms, application-code: 1017ms)
+ POST /leads?error=Apollo%20request%20failed%20with%20403 303 in 5.6s (next.js: 16ms, proxy.ts: 655ms, application-code: 4.9s)
+  └─ ƒ generateLeadsAction({}) in 3482ms app/leads/actions.ts
+ GET / 200 in 885ms (next.js: 180ms, proxy.ts: 89ms, application-code: 616ms)
+ GET / 200 in 2.3s (next.js: 19ms, proxy.ts: 999ms, application-code: 1240ms)
+[?25h

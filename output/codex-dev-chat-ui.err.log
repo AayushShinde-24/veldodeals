@@ -1,0 +1,287 @@
+[browser] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+      <LoadingBoundary name="login/" loading={null}>
+        <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+          <RedirectBoundary>
+            <RedirectErrorBoundary router={{...}}>
+              <InnerLayoutRouter url="/login" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} segmentPath={[...]} ...>
+                <SegmentViewNode type="page" pagePath="login/page...">
+                  <SegmentTrieNode>
+                  <LoginPage>
+                    <AuthLayout>
+                      <div className="auth-root">
+                        <div>
+                        <div className="auth-grid">
+                          <section className="auth-panel">
+                            <div>
+                            <h1>
+                            <p>
+                            <form className="form" action={function signInAction}>
+                              <AuthInput>
+                                <div className="field">
+                                  <label>
+                                  <div className="control" style={{display:"flex", ...}}>
+                                    <svg>
+                                    <input
+                                      id="email"
+                                      name="email"
+                                      type="email"
+                                      required={true}
+                                      placeholder="name@company.com"
+                                      style={{
++                                       background: "transparent"
++                                       border: 0
++                                       padding: 0
++                                       minHeight: 0
+-                                       background-image: "initial"
+-                                       background-position-x: "initial"
+-                                       background-position-y: "initial"
+-                                       background-size: "initial"
+-                                       background-repeat: "initial"
+-                                       background-attachment: "initial"
+-                                       background-origin: "initial"
+-                                       background-clip: "initial"
+-                                       background-color: "transparent"
+-                                       border-top-width: "0px"
+-                                       border-right-width: "0px"
+-                                       border-bottom-width: "0px"
+-                                       border-left-width: "0px"
+-                                       border-top-style: "none"
+-                                       border-right-style: "none"
+-                                       border-bottom-style: "none"
+-                                       border-left-style: "none"
+-                                       border-top-color: "currentcolor"
+-                                       border-right-color: "currentcolor"
+-                                       border-bottom-color: "currentcolor"
+-                                       border-left-color: "currentcolor"
+-                                       border-image-source: "initial"
+-                                       border-image-slice: "initial"
+-                                       border-image-width: "initial"
+-                                       border-image-outset: "initial"
+-                                       border-image-repeat: "initial"
+-                                       padding-top: "0px"
+-                                       padding-right: "0px"
+-                                       padding-bottom: "0px"
+-                                       padding-left: "0px"
+-                                       min-height: "0px"
+-                                       caret-color: "transparent"
+                                      }}
+                                    >
+                              <AuthInput>
+                                <div className="field">
+                                  <label>
+                                  <div className="control" style={{display:"flex", ...}}>
+                                    <svg>
+                                    <input
+                                      id="password"
+                                      name="password"
+                                      type="password"
+                                      required={true}
+                                      placeholder="Enter your password"
+                                      style={{
++                                       background: "transparent"
++                                       border: 0
++                                       padding: 0
++                                       minHeight: 0
+-                                       background-image: "initial"
+-                                       background-position-x: "initial"
+-                                       background-position-y: "initial"
+-                                       background-size: "initial"
+-                                       background-repeat: "initial"
+-                                       background-attachment: "initial"
+-                                       background-origin: "initial"
+-                                       background-clip: "initial"
+-                                       background-color: "transparent"
+-                                       border-top-width: "0px"
+-                                       border-right-width: "0px"
+-                                       border-bottom-width: "0px"
+-                                       border-left-width: "0px"
+-                                       border-top-style: "none"
+-                                       border-right-style: "none"
+-                                       border-bottom-style: "none"
+-                                       border-left-style: "none"
+-                                       border-top-color: "currentcolor"
+-                                       border-right-color: "currentcolor"
+-                                       border-bottom-color: "currentcolor"
+-                                       border-left-color: "currentcolor"
+-                                       border-image-source: "initial"
+-                                       border-image-slice: "initial"
+-                                       border-image-width: "initial"
+-                                       border-image-outset: "initial"
+-                                       border-image-repeat: "initial"
+-                                       padding-top: "0px"
+-                                       padding-right: "0px"
+-                                       padding-bottom: "0px"
+-                                       padding-left: "0px"
+-                                       min-height: "0px"
+-                                       caret-color: "transparent"
+                                      }}
+                                    >
+                              ...
+                          ...
+                ...
+              ...
+ 
+[browser] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+      <LoadingBoundary name="signup/" loading={null}>
+        <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+          <RedirectBoundary>
+            <RedirectErrorBoundary router={{...}}>
+              <InnerLayoutRouter url="/signup" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} segmentPath={[...]} ...>
+                <SegmentViewNode type="page" pagePath="signup/pag...">
+                  <SegmentTrieNode>
+                  <SignupPage>
+                    <div className="auth-root">
+                      <a>
+                      <div className="auth-grid">
+                        <section>
+                        <section className="auth-panel...">
+                          <div>
+                          <h1>
+                          <p>
+                          <form className="form" action={function signUpAction}>
+                            <AuthInput>
+                              <div className="field">
+                                <label>
+                                <div className="control au...">
+                                  <svg>
+                                  <input
+                                    id="full_name"
+                                    name="full_name"
+                                    type="text"
+                                    required={true}
+                                    placeholder="Andrew Carter"
+-                                   style={{caret-color:"transparent"}}
+                                  >
+                            <AuthInput>
+                              <div className="field">
+                                <label>
+                                <div className="control au...">
+                                  <svg>
+                                  <input
+                                    id="company_name"
+                                    name="company_name"
+                                    type="text"
+                                    required={true}
+                                    placeholder="Acme Corp"
+-                                   style={{caret-color:"transparent"}}
+                                  >
+                            <AuthInput>
+                              <div className="field">
+                                <label>
+                                <div className="control au...">
+                                  <svg>
+                                  <input
+                                    id="email"
+                                    name="email"
+                                    type="email"
+                                    required={true}
+                                    placeholder="name@company.com"
+-                                   style={{caret-color:"transparent"}}
+                                  >
+                            <AuthInput>
+                              <div className="field">
+                                <label>
+                                <div className="control au...">
+                                  <svg>
+                                  <input
+                                    id="password"
+                                    name="password"
+                                    type="password"
+                                    required={true}
+                                    placeholder="Create a password"
+-                                   style={{caret-color:"transparent"}}
+                                  >
+                            ...
+                          ...
+                ...
+              ...
+ 
+[browser] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+      <LoadingBoundary name="login/" loading={null}>
+        <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+          <RedirectBoundary>
+            <RedirectErrorBoundary router={{...}}>
+              <InnerLayoutRouter url="/login" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} segmentPath={[...]} ...>
+                <SegmentViewNode type="page" pagePath="login/page...">
+                  <SegmentTrieNode>
+                  <LoginPage>
+                    <AuthLayout>
+                      <div className="auth-root">
+                        <a>
+                        <div className="auth-grid">
+                          <section>
+                          <section className="auth-panel...">
+                            <div>
+                            <h1>
+                            <p>
+                            <form className="form" action={function signInAction}>
+                              <AuthInput>
+                                <div className="field">
+                                  <label>
+                                  <div className="control au...">
+                                    <svg>
+                                    <input
+                                      id="email"
+                                      name="email"
+                                      type="email"
+                                      required={true}
+                                      placeholder="name@company.com"
+-                                     style={{caret-color:"transparent"}}
+                                    >
+                              <AuthInput>
+                                <div className="field">
+                                  <label>
+                                  <div className="control au...">
+                                    <svg>
+                                    <input
+                                      id="password"
+                                      name="password"
+                                      type="password"
+                                      required={true}
+                                      placeholder="Enter your password"
+-                                     style={{caret-color:"transparent"}}
+                                    >
+                              ...
+                            ...
+                ...
+              ...
+ 

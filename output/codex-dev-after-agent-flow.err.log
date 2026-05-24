@@ -1,0 +1,228 @@
+⚠ Slow filesystem detected. The benchmark took 224ms. If C:\Users\shind\Desktop\Veldo\.next/dev is a network drive, consider moving it to a local folder.
+See more: https://nextjs.org/docs/app/guides/local-development
+[browser] A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+      <LoadingBoundary name="login/" loading={null}>
+        <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+          <RedirectBoundary>
+            <RedirectErrorBoundary router={{...}}>
+              <InnerLayoutRouter url="/login" tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} segmentPath={[...]} ...>
+                <SegmentViewNode type="page" pagePath="login/page...">
+                  <SegmentTrieNode>
+                  <LoginPage>
+                    <AuthLayout>
+                      <div className="auth-root">
+                        <div>
+                        <div className="auth-grid">
+                          <section className="auth-panel">
+                            <div>
+                            <h1>
+                            <p>
+                            <form className="form" action={function signInAction}>
+                              <AuthInput>
+                                <div className="field">
+                                  <label>
+                                  <div className="control" style={{display:"flex", ...}}>
+                                    <svg>
+                                    <input
+                                      id="email"
+                                      name="email"
+                                      type="email"
+                                      required={true}
+                                      placeholder="name@company.com"
+                                      style={{
++                                       background: "transparent"
++                                       border: 0
++                                       padding: 0
++                                       minHeight: 0
+-                                       background-image: "initial"
+-                                       background-position-x: "initial"
+-                                       background-position-y: "initial"
+-                                       background-size: "initial"
+-                                       background-repeat: "initial"
+-                                       background-attachment: "initial"
+-                                       background-origin: "initial"
+-                                       background-clip: "initial"
+-                                       background-color: "transparent"
+-                                       border-top-width: "0px"
+-                                       border-right-width: "0px"
+-                                       border-bottom-width: "0px"
+-                                       border-left-width: "0px"
+-                                       border-top-style: "none"
+-                                       border-right-style: "none"
+-                                       border-bottom-style: "none"
+-                                       border-left-style: "none"
+-                                       border-top-color: "currentcolor"
+-                                       border-right-color: "currentcolor"
+-                                       border-bottom-color: "currentcolor"
+-                                       border-left-color: "currentcolor"
+-                                       border-image-source: "initial"
+-                                       border-image-slice: "initial"
+-                                       border-image-width: "initial"
+-                                       border-image-outset: "initial"
+-                                       border-image-repeat: "initial"
+-                                       padding-top: "0px"
+-                                       padding-right: "0px"
+-                                       padding-bottom: "0px"
+-                                       padding-left: "0px"
+-                                       min-height: "0px"
+-                                       caret-color: "transparent"
+                                      }}
+                                    >
+                              <AuthInput>
+                                <div className="field">
+                                  <label>
+                                  <div className="control" style={{display:"flex", ...}}>
+                                    <svg>
+                                    <input
+                                      id="password"
+                                      name="password"
+                                      type="password"
+                                      required={true}
+                                      placeholder="Enter your password"
+                                      style={{
++                                       background: "transparent"
++                                       border: 0
++                                       padding: 0
++                                       minHeight: 0
+-                                       background-image: "initial"
+-                                       background-position-x: "initial"
+-                                       background-position-y: "initial"
+-                                       background-size: "initial"
+-                                       background-repeat: "initial"
+-                                       background-attachment: "initial"
+-                                       background-origin: "initial"
+-                                       background-clip: "initial"
+-                                       background-color: "transparent"
+-                                       border-top-width: "0px"
+-                                       border-right-width: "0px"
+-                                       border-bottom-width: "0px"
+-                                       border-left-width: "0px"
+-                                       border-top-style: "none"
+-                                       border-right-style: "none"
+-                                       border-bottom-style: "none"
+-                                       border-left-style: "none"
+-                                       border-top-color: "currentcolor"
+-                                       border-right-color: "currentcolor"
+-                                       border-bottom-color: "currentcolor"
+-                                       border-left-color: "currentcolor"
+-                                       border-image-source: "initial"
+-                                       border-image-slice: "initial"
+-                                       border-image-width: "initial"
+-                                       border-image-outset: "initial"
+-                                       border-image-repeat: "initial"
+-                                       padding-top: "0px"
+-                                       padding-right: "0px"
+-                                       padding-bottom: "0px"
+-                                       padding-left: "0px"
+-                                       min-height: "0px"
+-                                       caret-color: "transparent"
+                                      }}
+                                    >
+                              ...
+                          ...
+                ...
+              ...
+ 
+⨯ ./app/agent/page.tsx:2:1
+Module not found: Can't resolve '@/app/agent/veldo-chat-client'
+  [90m1 |[0m [36mimport[0m { [33mPageShell[0m } [36mfrom[0m [32m"@/components/premium"[0m;
+[31m[1m>[0m [90m2 |[0m [36mimport[0m { [33mVeldoChatClient[0m } [36mfrom[0m [32m"@/app/agent/veldo-chat-client"[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m3 |[0m
+  [90m4 |[0m [36mexport[0m [36mdefault[0m [36mfunction[0m [33mVeldoAgentPage[0m() {
+  [90m5 |[0m   [36mreturn[0m (
+
+Import map: aliased to relative './app/agent/veldo-chat-client' inside of [project]/
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+⨯ ./app/agent/page.tsx:2:1
+Module not found: Can't resolve '@/app/agent/veldo-chat-client'
+  [90m1 |[0m [36mimport[0m { [33mPageShell[0m } [36mfrom[0m [32m"@/components/premium"[0m;
+[31m[1m>[0m [90m2 |[0m [36mimport[0m { [33mVeldoChatClient[0m } [36mfrom[0m [32m"@/app/agent/veldo-chat-client"[0m;
+  [90m  |[0m [31m[1m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  [90m3 |[0m
+  [90m4 |[0m [36mexport[0m [36mdefault[0m [36mfunction[0m [33mVeldoAgentPage[0m() {
+  [90m5 |[0m   [36mreturn[0m (
+
+Import map: aliased to relative './app/agent/veldo-chat-client' inside of [project]/
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[browser] ./app/agent/page.tsx:2:1
+Module not found: Can't resolve '@/app/agent/veldo-chat-client'
+  1 | import { PageShell } from "@/components/premium";
+> 2 | import { VeldoChatClient } from "@/app/agent/veldo-chat-client";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  3 |
+  4 | export default function VeldoAgentPage() {
+  5 |   return (
+
+Import map: aliased to relative './app/agent/veldo-chat-client' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./app/agent/page.tsx:2:1
+Module not found: Can't resolve '@/app/agent/veldo-chat-client'
+  1 | import { PageShell } from "@/components/premium";
+> 2 | import { VeldoChatClient } from "@/app/agent/veldo-chat-client";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  3 |
+  4 | export default function VeldoAgentPage() {
+  5 |   return (
+
+Import map: aliased to relative './app/agent/veldo-chat-client' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+[browser] ./app/agent/page.tsx:2:1
+Module not found: Can't resolve '@/app/agent/veldo-chat-client'
+  1 | import { PageShell } from "@/components/premium";
+> 2 | import { VeldoChatClient } from "@/app/agent/veldo-chat-client";
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  3 |
+  4 | export default function VeldoAgentPage() {
+  5 |   return (
+
+Import map: aliased to relative './app/agent/veldo-chat-client' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found 
+Error [AuthApiError]: Invalid Refresh Token: Already Used
+    at ignore-listed frames {
+  __isAuthError: true,
+  status: 400,
+  code: 'refresh_token_already_used'
+}
+Error [AuthApiError]: Invalid Refresh Token: Already Used
+    at ignore-listed frames {
+  __isAuthError: true,
+  status: 400,
+  code: 'refresh_token_already_used'
+}
+Error [AuthApiError]: Invalid Refresh Token: Already Used
+    at ignore-listed frames {
+  __isAuthError: true,
+  status: 400,
+  code: 'refresh_token_already_used'
+}
+Error [AuthApiError]: Invalid Refresh Token: Already Used
+    at ignore-listed frames {
+  __isAuthError: true,
+  status: 400,
+  code: 'refresh_token_already_used'
+}

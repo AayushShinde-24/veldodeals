@@ -1,0 +1,130 @@
+- generic [ref=e2]:
+  - complementary [ref=e3]:
+    - generic [ref=e4]:
+      - link "Veldo dashboard" [ref=e5] [cursor=pointer]:
+        - /url: /dashboard
+        - generic [ref=e7]: V
+        - generic [ref=e8]:
+          - text: Veldo
+          - generic [ref=e9]: AI Sales Team OS
+      - button "Collapse sidebar" [expanded] [ref=e10] [cursor=pointer]:
+        - img [ref=e11]
+    - navigation "Main navigation" [ref=e12]:
+      - link "Dashboard" [ref=e13] [cursor=pointer]:
+        - /url: /dashboard
+        - img [ref=e14]
+        - generic [ref=e19]: Dashboard
+      - link "Vel AI" [ref=e20] [cursor=pointer]:
+        - /url: /agent
+        - img [ref=e21]
+        - generic [ref=e24]: Vel AI
+      - link "Campaigns" [ref=e25] [cursor=pointer]:
+        - /url: /campaigns
+        - img [ref=e26]
+        - generic [ref=e30]: Campaigns
+      - link "Builder" [ref=e31] [cursor=pointer]:
+        - /url: /campaigns/new
+        - img [ref=e32]
+        - generic [ref=e35]: Builder
+      - link "Leads" [ref=e36] [cursor=pointer]:
+        - /url: /leads
+        - img [ref=e37]
+        - generic [ref=e41]: Leads
+      - link "Lead finder" [ref=e42] [cursor=pointer]:
+        - /url: /lead-finder
+        - img [ref=e43]
+        - generic [ref=e46]: Lead finder
+      - link "Personalization" [ref=e47] [cursor=pointer]:
+        - /url: /personalization
+        - img [ref=e48]
+        - generic [ref=e51]: Personalization
+      - link "Replies" [ref=e52] [cursor=pointer]:
+        - /url: /inbox
+        - img [ref=e53]
+        - generic [ref=e56]: Replies
+      - link "Calls" [ref=e57] [cursor=pointer]:
+        - /url: /calls
+        - img [ref=e58]
+        - generic [ref=e62]: Calls
+      - link "CRM deals" [ref=e63] [cursor=pointer]:
+        - /url: /crm
+        - img [ref=e64]
+        - generic [ref=e69]: CRM deals
+      - link "Fundraising" [ref=e70] [cursor=pointer]:
+        - /url: /fundraising
+        - img [ref=e71]
+        - generic [ref=e74]: Fundraising
+      - link "Agents" [ref=e75] [cursor=pointer]:
+        - /url: /agents
+        - img [ref=e76]
+        - generic [ref=e79]: Agents
+      - link "Tasks" [ref=e80] [cursor=pointer]:
+        - /url: /agents/tasks
+        - img [ref=e81]
+        - generic [ref=e84]: Tasks
+      - link "Logs" [ref=e85] [cursor=pointer]:
+        - /url: /agents/logs
+        - img [ref=e86]
+        - generic [ref=e88]: Logs
+      - link "Analytics" [ref=e89] [cursor=pointer]:
+        - /url: /analytics
+        - img [ref=e90]
+        - generic [ref=e92]: Analytics
+      - link "Profile" [ref=e93] [cursor=pointer]:
+        - /url: /profile
+        - img [ref=e94]
+        - generic [ref=e98]: Profile
+      - link "API keys" [ref=e99] [cursor=pointer]:
+        - /url: /settings/api-keys
+        - img [ref=e100]
+        - generic [ref=e103]: API keys
+    - link "VW Veldo Workspace Operator" [ref=e105] [cursor=pointer]:
+      - /url: /profile
+      - generic [ref=e106]: VW
+      - generic [ref=e107]:
+        - strong [ref=e108]: Veldo Workspace
+        - generic [ref=e109]: Operator
+  - main [ref=e110]:
+    - generic [ref=e111]:
+      - generic [ref=e112]:
+        - img [ref=e113]
+        - generic [ref=e116]: Search campaigns, leads, agents...
+        - generic [ref=e117]: Ctrl K
+      - generic [ref=e118]:
+        - link "Notifications" [ref=e119] [cursor=pointer]:
+          - /url: /agents/logs
+          - img [ref=e120]
+        - link "V Veldo Workspace" [ref=e123] [cursor=pointer]:
+          - /url: /workspace
+          - generic [ref=e124]: V
+          - img [ref=e125]
+          - text: Veldo Workspace
+        - link "New campaign" [ref=e129] [cursor=pointer]:
+          - /url: /campaigns/new
+          - img [ref=e130]
+          - text: New campaign
+    - generic [ref=e133]:
+      - generic [ref=e134]:
+        - generic [ref=e135]:
+          - generic [ref=e136]: Developer settings
+          - heading "API keys" [level=1] [ref=e137]
+          - paragraph [ref=e138]: Create secret keys for server-side Veldo integrations. Full keys are shown once at creation.
+        - link "Generate new API key" [ref=e140] [cursor=pointer]:
+          - /url: "#create-api-key"
+          - img [ref=e141]
+          - text: Generate new API key
+      - generic [ref=e145]:
+        - generic [ref=e146]:
+          - generic [ref=e147]:
+            - img [ref=e148]
+            - textbox "Search API keys" [ref=e151]:
+              - /placeholder: Search...
+          - generic [ref=e152]: 0 active
+          - button "Generate new API key" [active] [ref=e153] [cursor=pointer]:
+            - img [ref=e154]
+            - text: Generate new API key
+        - generic [ref=e157]: Sign in before managing API keys.
+        - generic [ref=e158]:
+          - img [ref=e160]
+          - heading "No API keys yet" [level=3] [ref=e163]
+          - paragraph [ref=e164]: Generate a key to call Veldo from your own app or backend.

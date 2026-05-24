@@ -1,0 +1,38 @@
+{
+  "name": "veldo-ai-sales-team-os",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next build",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/*.test.mjs",
+    "preflight:launch": "node scripts/preflight-launch.mjs",
+    "audit:website": "node scripts/audit-website.mjs"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.10.3",
+    "@supabase/supabase-js": "^2.86.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.555.0",
+    "next": "^16.0.10",
+    "papaparse": "^5.5.3",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "server-only": "^0.0.1",
+    "tailwind-merge": "^3.6.0",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.0",
+    "@types/node": "^24.10.1",
+    "@types/papaparse": "^5.3.16",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "playwright": "^1.60.0",
+    "tailwindcss": "^4.3.0",
+    "typescript": "^5.9.3"
+  }
+}
