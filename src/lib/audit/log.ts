@@ -1,22 +1,29 @@
-import "server-only";
-
 import { createServiceClient } from "@/lib/integrations/supabase";
 
-export async function writeAuditLog(input: {
-  workspaceId?: string | null;
-  userId?: string | null;
+export interface AuditEntry {
+  userId: string;
+  workspaceId?: string;
   action: string;
-  metadata?: Record<string, unknown>;
-}) {
-  if (!input.workspaceId && !input.userId) return;
+  resourceType?: string;
+  resourceId?: string;
+  metadata?: unknown;
+  ipAddress?: string;
+  [key: string]: unknown;
+}
+
+export async function writeAuditLog(entry: AuditEntry): Promise<void> {
   try {
-    await createServiceClient().from("audit_logs").insert({
-      workspace_id: input.workspaceId ?? null,
-      user_id: input.userId ?? null,
-      action: input.action,
-      metadata: input.metadata ?? {},
+    const db = createServiceClient();
+    await db.from("audit_logs").insert({
+      user_id: entry.userId,
+      action: entry.action,
+      resource_type: entry.resourceType ?? null,
+      resource_id: entry.resourceId ?? null,
+      metadata: entry.metadata ?? null,
+      ip_address: entry.ipAddress ?? null,
+      created_at: new Date().toISOString(),
     });
   } catch {
-    // Audit logging must not break the product path when legacy schemas are missing.
+    // Audit logging is non-blocking — don't fail the request
   }
 }

@@ -13,15 +13,15 @@ export default async function LeadsPage({ searchParams }: { searchParams: UiSear
   if (!user) redirect("/login");
   const params = await searchParams;
   const leads = await getListData(user.id, "leads");
-  const generated = typeof params.generated === "string" ? params.generated : null;
-  const error = typeof params.error === "string" ? params.error : null;
+  const generated = typeof params?.generated === "string" ? params.generated : null;
+  const error = typeof params?.error === "string" ? params.error : null;
 
   return (
     <PageShell>
       <PageHeader
         eyebrow="Leads"
         title="Your leads"
-        description="Generate leads or import a CSV. Enrichment and research run server-side and save results securely."
+        description="Generate leads or import a CSV. Enrichment and research save reviewable records securely."
         actions={<a className="btn" href="/leads/import"><Upload size={16} /> Import CSV</a>}
       />
 

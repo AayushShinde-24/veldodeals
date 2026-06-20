@@ -1,53 +1,136 @@
-import "server-only";
+import { createServiceClient } from "@/lib/integrations/supabase";
+import { generateStructured } from "@/lib/agents/structured";
+import { consumeCredits } from "@/lib/billing/consumption";
 
-import { fetchLeadBundle, getDb, logAgent, saveDecision, updateLeadStage, wordCount } from "@/lib/agents/agent-helpers";
-import { generateValidatedJson, loadAgentPrompt } from "@/lib/agents/model-router";
-import { emailWriterOutputSchema, type AgentContext, type EmailWriterOutput } from "@/lib/agents/schemas";
+export interface WriteEmailResult {
+  draftId: string | null;
+  subject: string;
+  body: string;
+  followUp: string;
+  personalizationReason: string;
+  personalizationRisk: "low" | "medium" | "high";
+  charged: number;
+  blocked?: string;
+}
 
-export async function runEmailWriterAgent(input: Record<string, unknown>, context: AgentContext): Promise<EmailWriterOutput> {
-  if (!context.leadId || !context.campaignId) throw new Error("campaign_id and lead_id are required for email writing.");
-  const db = getDb();
-  const bundle = await fetchLeadBundle(db, context.leadId);
-  const { data: campaign } = await db.from("campaigns").select("*").eq("id", context.campaignId).single();
-  if (!campaign) throw new Error("Campaign not found.");
+interface EmailPayload {
+  subject: string;
+  body: string;
+  follow_up_1: string;
+  angle: string;
+  personalization_reason: string;
+  personalization_risk: "low" | "medium" | "high";
+}
 
-  const prompt = await loadAgentPrompt("email-writer.md");
-  const output = await generateValidatedJson({
-    route: input.cheap_variant === true ? "openai_control" : "claude_premium",
-    schema: emailWriterOutputSchema,
-    systemPrompt: prompt,
-    userPrompt: JSON.stringify({
-      task: "Write a short cold email.",
-      lead_id: context.leadId,
-      lead: bundle.lead,
-      personalization: bundle.personalization,
-      email_strategy: bundle.emailStrategy,
-      company_research: bundle.companyResearch,
-      public_signals: bundle.publicSignals,
-      campaign_offer: campaign.offer_json,
-      campaign_goal: campaign.goal,
-    }),
-    context,
+/**
+ * Write a personalized cold email + first follow-up for a lead, grounded in the stored
+ * research/signals and the campaign offer. Charges credits (email_write, ×1.25 if
+ * hyper-personalized) idempotently, persists to generated_emails, and records the
+ * strategy angle. Never fabricates facts — risk is flagged for the send-gate.
+ */
+export async function writeEmail(input: {
+  userId: string;
+  leadId: string;
+  campaignId: string;
+  hyperPersonalization?: boolean;
+}): Promise<WriteEmailResult> {
+  const db = createServiceClient();
+
+  const [{ data: lead }, { data: campaign }, { data: research }, { data: signal }] = await Promise.all([
+    db.from("leads").select("first_name, last_name, company, title, email").eq("id", input.leadId).eq("user_id", input.userId).maybeSingle(),
+    db.from("campaigns").select("name, goal, product_offer, offer_json, target_audience").eq("id", input.campaignId).eq("user_id", input.userId).maybeSingle(),
+    db.from("company_research").select("summary").eq("lead_id", input.leadId).eq("user_id", input.userId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    db.from("signals").select("best_signal, content").eq("lead_id", input.leadId).eq("user_id", input.userId).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+  ]);
+
+  if (!lead) throw new Error("Lead not found for email writing.");
+
+  // Charge credits up front, idempotent per (lead, campaign) so retries don't double-bill.
+  const charge = await consumeCredits(input.userId, "email_write", {
+    hyperPersonalization: input.hyperPersonalization,
+    idempotencyKey: `email_write:${input.campaignId}:${input.leadId}`,
+    metadata: { leadId: input.leadId, campaignId: input.campaignId },
+  });
+  if (!charge.success) {
+    return {
+      draftId: null,
+      subject: "",
+      body: "",
+      followUp: "",
+      personalizationReason: "",
+      personalizationRisk: "high",
+      charged: 0,
+      blocked: charge.error ?? "Insufficient credits to write email.",
+    };
+  }
+
+  const firstName = lead.first_name ?? "there";
+  const { data } = await generateStructured<EmailPayload>({
+    system:
+      "You are an elite B2B cold-email writer. Write a short, specific, non-salesy email (60-110 words) that earns a reply. Use only facts provided — never invent metrics, mutual connections, or events. One clear CTA. Plus a 1-2 sentence follow-up. Flag personalization_risk: 'high' if you had to guess at specifics, 'low' if grounded in provided facts.",
+    prompt: [
+      `Recipient: ${firstName}${lead.title ? `, ${lead.title}` : ""}${lead.company ? ` at ${lead.company}` : ""}`,
+      campaign?.product_offer ? `What we offer: ${campaign.product_offer}` : "",
+      campaign?.goal ? `Campaign goal: ${campaign.goal}` : "",
+      research?.summary ? `Company research: ${research.summary}` : "",
+      signal?.best_signal || signal?.content ? `Timely signal: ${signal?.best_signal ?? signal?.content}` : "",
+      input.hyperPersonalization ? "Mode: hyper-personalized — lead hard on the specific signal." : "",
+      `\nReturn JSON: { "subject": string, "body": string, "follow_up_1": string, "angle": string, "personalization_reason": string, "personalization_risk": "low"|"medium"|"high" }`,
+    ]
+      .filter(Boolean)
+      .join("\n"),
+    tier: input.hyperPersonalization ? "deep" : "balanced",
+    maxTokens: 900,
   });
 
-  const normalized = emailWriterOutputSchema.parse({ ...output, word_count: wordCount(output.email_body) });
-  await db.from("personalized_emails").upsert({
-    user_id: context.userId,
-    campaign_id: context.campaignId,
-    lead_id: context.leadId,
-    subject_1: normalized.subject_1,
-    subject_2: normalized.subject_2,
-    email_body: normalized.email_body,
-    cta: normalized.cta,
-    tone: normalized.tone,
-    personalization_used: normalized.personalization_used,
-    assumptions: normalized.assumptions,
-    word_count: normalized.word_count,
-    approval_status: "needs_review",
-  }, { onConflict: "lead_id" });
+  const subject = (data.subject ?? "").trim();
+  const body = (data.body ?? "").trim();
+  const followUp = (data.follow_up_1 ?? "").trim();
+  const personalizationReason = (data.personalization_reason ?? "").trim();
+  const personalizationRisk = normalizeRisk(data.personalization_risk);
 
-  await updateLeadStage(db, context.leadId, "drafted");
-  await logAgent(db, { ...context, agentName: "email_writer" }, "Email draft saved for review.", "info", { word_count: normalized.word_count });
-  await saveDecision(db, { ...context, agentName: "email_writer" }, normalized, normalized.word_count <= 110 ? 80 : 55, true);
-  return normalized;
+  const { data: draft } = await db
+    .from("generated_emails")
+    .insert({
+      user_id: input.userId,
+      campaign_id: input.campaignId,
+      lead_id: input.leadId,
+      subject,
+      subject_1: subject,
+      body,
+      email_body: body,
+      follow_up_1: followUp,
+      personalization_reason: personalizationReason,
+      personalization_risk: personalizationRisk,
+      status: "generated",
+      approval_status: "pending",
+      safety_status: "not_checked",
+      created_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (data.angle) {
+    await db.from("email_strategies").insert({
+      user_id: input.userId,
+      lead_id: input.leadId,
+      approach: data.angle,
+      angle: data.angle,
+      created_at: new Date().toISOString(),
+    });
+  }
+
+  return {
+    draftId: draft?.id ?? null,
+    subject,
+    body,
+    followUp,
+    personalizationReason,
+    personalizationRisk,
+    charged: charge.cost,
+  };
+}
+
+function normalizeRisk(risk: unknown): "low" | "medium" | "high" {
+  return risk === "low" || risk === "medium" || risk === "high" ? risk : "medium";
 }

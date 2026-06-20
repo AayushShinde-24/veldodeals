@@ -1,61 +1,76 @@
-import "server-only";
-
 import { createServiceClient } from "@/lib/integrations/supabase";
-import type { UserCompliance } from "@/src/lib/mvp/compliance";
-import { getEnv } from "@/lib/security/env";
 
-export async function isUnsubscribed(input: { userId: string; email: string }) {
-  const domain = input.email.split("@")[1]?.toLowerCase() ?? "";
-  let query = createServiceClient()
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.veldo.ai";
+
+export function buildUnsubscribeLink(email: string, userId: string): string;
+export function buildUnsubscribeLink(options: { email: string; userId?: string; campaignId?: string }): string;
+export function buildUnsubscribeLink(
+  emailOrOptions: string | { email: string; userId?: string; campaignId?: string },
+  userId?: string
+): string {
+  const email = typeof emailOrOptions === "string" ? emailOrOptions : emailOrOptions.email;
+  const uid = typeof emailOrOptions === "string" ? (userId ?? "") : (emailOrOptions.userId ?? emailOrOptions.campaignId ?? "");
+  const token = Buffer.from(`${uid}:${email}`).toString("base64url");
+  return `${APP_URL}/unsubscribe?t=${token}`;
+}
+
+export async function isUnsubscribed(email: string, userId: string): Promise<boolean>;
+export async function isUnsubscribed(options: { email: string; userId: string }): Promise<boolean>;
+export async function isUnsubscribed(
+  emailOrOptions: string | { email: string; userId: string },
+  userId?: string
+): Promise<boolean> {
+  const email = typeof emailOrOptions === "string" ? emailOrOptions : emailOrOptions.email;
+  const uid = typeof emailOrOptions === "string" ? (userId ?? "") : emailOrOptions.userId;
+  const db = createServiceClient();
+  const { data } = await db
     .from("unsubscribes")
     .select("id")
-    .eq("user_id", input.userId)
-    .limit(1);
-  query = domain ? query.or(`email.ilike.${input.email},domain.eq.${domain}`) : query.ilike("email", input.email);
-  const { data, error } = await query.maybeSingle();
-  if (error) throw new Error(error.message);
-  return Boolean(data?.id);
+    .eq("user_id", uid)
+    .eq("email", email.toLowerCase())
+    .maybeSingle();
+  return !!data;
 }
 
-export async function recordUnsubscribe(input: { userId?: string | null; campaignId?: string | null; email: string; reason?: string }) {
-  const { data, error } = await createServiceClient()
+export async function recordUnsubscribe(
+  emailOrOptions: string | { email: string; userId?: string | null; campaignId?: string | null; reason?: string },
+  userId?: string
+): Promise<void> {
+  const email = typeof emailOrOptions === "string" ? emailOrOptions : emailOrOptions.email;
+  const uid = typeof emailOrOptions === "string" ? (userId ?? "") : (emailOrOptions.userId ?? "");
+  const campaignId = typeof emailOrOptions === "object" ? emailOrOptions.campaignId : undefined;
+  const db = createServiceClient();
+  await db
     .from("unsubscribes")
-    .upsert({
-      user_id: input.userId ?? null,
-      campaign_id: input.campaignId ?? null,
-      email: input.email.trim().toLowerCase(),
-      domain: input.email.split("@")[1]?.trim().toLowerCase() ?? null,
-      reason: input.reason ?? null,
-      source: "public_link",
-    }, { onConflict: "user_id,email" })
-    .select("*")
-    .single();
-  if (error) throw new Error(error.message);
-  return data;
+    .upsert(
+      { user_id: uid, email: email.toLowerCase(), campaign_id: campaignId ?? null, created_at: new Date().toISOString() },
+      { onConflict: "user_id,email" }
+    );
 }
 
-export function buildUnsubscribeLink(input: { email: string; campaignId: string }) {
-  const base = (getEnv().APP_URL ?? getEnv().VELDO_APP_URL).replace(/\/$/u, "");
-  const url = new URL(`${base}/unsubscribe`);
-  url.searchParams.set("email", input.email);
-  url.searchParams.set("campaign_id", input.campaignId);
-  return url.toString();
-}
+export function appendComplianceFooter(html: string, email: string, userId: string): string;
+export function appendComplianceFooter(options: { body: string; compliance?: unknown; unsubscribeLink?: string; email?: string; userId?: string }): string;
+export function appendComplianceFooter(
+  htmlOrOptions: string | { body: string; compliance?: unknown; unsubscribeLink?: string; email?: string; userId?: string },
+  email?: string,
+  userId?: string
+): string {
+  let html: string;
+  let unsubscribeUrl: string;
 
-export function appendComplianceFooter(input: { body: string; compliance: UserCompliance; unsubscribeLink: string }) {
-  const footer = [
-    "",
-    "--",
-    "You are receiving this email because it may be relevant to your business role/company.",
-    `Sent by ${input.compliance.company_name}.`,
-    `Mailing address: ${input.compliance.physical_mailing_address}.`,
-    `Unsubscribe: ${input.unsubscribeLink}`,
-  ].join("\n");
-  return `${input.body.trim()}\n${footer}`;
-}
+  if (typeof htmlOrOptions === "string") {
+    html = htmlOrOptions;
+    unsubscribeUrl = buildUnsubscribeLink(email ?? "", userId ?? "");
+  } else {
+    html = htmlOrOptions.body;
+    unsubscribeUrl = htmlOrOptions.unsubscribeLink ?? buildUnsubscribeLink(htmlOrOptions.email ?? "", htmlOrOptions.userId ?? "");
+  }
 
-export function hasComplianceFooter(body: string) {
-  return body.includes("You are receiving this email because it may be relevant to your business role/company.") &&
-    body.includes("Mailing address:") &&
-    body.includes("Unsubscribe:");
+  const footer = `
+<div style="margin-top:32px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:12px;color:#9ca3af;line-height:1.5;">
+  <p>You're receiving this email because your contact details were shared with us for outreach purposes.</p>
+  <p><a href="${unsubscribeUrl}" style="color:#6b7280;text-decoration:underline;">Unsubscribe</a> from future emails.</p>
+</div>`;
+  if (html.includes("</body>")) return html.replace("</body>", footer + "</body>");
+  return html + footer;
 }

@@ -1,48 +1,93 @@
-import "server-only";
+import { createServiceClient } from "@/lib/integrations/supabase";
+import { generateStructured, clampScore } from "@/lib/agents/structured";
+import { GATE_THRESHOLDS } from "@/lib/agents/send-gate-agent";
 
-import { fetchLeadBundle, getDb, logAgent, saveDecision, updateLeadStage } from "@/lib/agents/agent-helpers";
-import { icpFitOutputSchema, type AgentContext, type IcpFitOutput } from "@/lib/agents/schemas";
-
-export async function runIcpFitAgent(input: Record<string, unknown>, context: AgentContext): Promise<IcpFitOutput> {
-  if (!context.leadId || !context.campaignId) throw new Error("campaign_id and lead_id are required for ICP scoring.");
-  const db = getDb();
-  const { lead, companyResearch, publicSignals } = await fetchLeadBundle(db, context.leadId);
-  const { data: campaign } = await db.from("campaigns").select("*").eq("id", context.campaignId).single();
-  if (!campaign) throw new Error("Campaign not found.");
-
-  const icp = campaign.icp_json as Record<string, unknown>;
-  const roleScore = containsAny(lead.title, icp.roles) ? 25 : lead.title ? 15 : 5;
-  const industryScore = containsAny(lead.industry ?? companyResearch?.target_customers, icp.industries) ? 25 : 12;
-  const painScore = companyResearch?.possible_pain_points?.length ? 22 : 8;
-  const triggerScore = publicSignals?.confidence && publicSignals.confidence >= 60 ? 22 : publicSignals ? 12 : 0;
-  const fitScore = Math.min(100, roleScore + industryScore + painScore + triggerScore);
-
-  const output = icpFitOutputSchema.parse({
-    lead_id: context.leadId,
-    fit_score: fitScore,
-    fit_level: fitScore >= 80 ? "high" : fitScore >= 65 ? "medium" : fitScore >= 50 ? "low" : "reject",
-    reason: `Role ${roleScore}/25, company ${industryScore}/25, pain ${painScore}/25, trigger ${triggerScore}/25.`,
-    should_continue: fitScore >= 50,
-  });
-
-  await db.from("icp_scores").upsert({
-    user_id: context.userId,
-    campaign_id: context.campaignId,
-    lead_id: context.leadId,
-    fit_score: output.fit_score,
-    fit_level: output.fit_level,
-    reason: output.reason,
-    should_continue: output.should_continue,
-  }, { onConflict: "lead_id" });
-
-  await updateLeadStage(db, context.leadId, output.should_continue ? "scored" : "rejected");
-  await logAgent(db, { ...context, agentName: "icp_fit" }, "ICP fit scored.", "info", { fit_score: output.fit_score });
-  await saveDecision(db, { ...context, agentName: "icp_fit" }, output, output.fit_score, !output.should_continue);
-  return output;
+export interface IcpResult {
+  leadId: string;
+  fitScore: number;
+  reasoning: string;
+  passesThreshold: boolean;
 }
 
-function containsAny(value: unknown, targets: unknown) {
-  const haystack = typeof value === "string" ? value.toLowerCase() : "";
-  const needles = Array.isArray(targets) ? targets.filter((item): item is string => typeof item === "string") : [];
-  return needles.some((needle) => haystack.includes(needle.toLowerCase()));
+interface IcpPayload {
+  fit_score: number;
+  reasoning: string;
+}
+
+/**
+ * Score a lead against the campaign's ICP. Writes fit_score + reasoning to icp_scores
+ * and stamps leads.icp_score. Feeds the ICP send-gate (threshold 50).
+ */
+export async function scoreIcpFit(input: {
+  userId: string;
+  leadId: string;
+  campaignId: string;
+}): Promise<IcpResult> {
+  const db = createServiceClient();
+
+  const [{ data: lead }, { data: campaign }] = await Promise.all([
+    db
+      .from("leads")
+      .select("company, title, first_name, last_name, location")
+      .eq("id", input.leadId)
+      .eq("user_id", input.userId)
+      .maybeSingle(),
+    db
+      .from("campaigns")
+      .select("name, goal, target_audience, target_niche, location, icp_json, offer_json, product_offer")
+      .eq("id", input.campaignId)
+      .eq("user_id", input.userId)
+      .maybeSingle(),
+  ]);
+
+  if (!lead) throw new Error("Lead not found for ICP scoring.");
+
+  const icp = describeIcp(campaign);
+
+  const { data } = await generateStructured<IcpPayload>({
+    system:
+      "You are a B2B qualification analyst. Score how well a lead matches an Ideal Customer Profile from 0-100, where 100 is a perfect fit. Weigh role seniority/relevance, company/industry fit, and geography. Be strict: weak title or off-segment company should score below 50. Give a one-sentence reason.",
+    prompt: [
+      `ICP / campaign target:\n${icp}`,
+      `\nLead:`,
+      `- Name: ${[lead.first_name, lead.last_name].filter(Boolean).join(" ") || "(unknown)"}`,
+      `- Title: ${lead.title ?? "(unknown)"}`,
+      `- Company: ${lead.company ?? "(unknown)"}`,
+      `- Location: ${lead.location ?? "(unknown)"}`,
+      `\nReturn JSON: { "fit_score": number 0-100, "reasoning": string }`,
+    ].join("\n"),
+    tier: "fast",
+    maxTokens: 400,
+  });
+
+  const fitScore = clampScore(data.fit_score);
+  const reasoning = (data.reasoning ?? "").trim();
+
+  await db.from("icp_scores").insert({
+    user_id: input.userId,
+    lead_id: input.leadId,
+    score: fitScore,
+    fit_score: fitScore,
+    reasoning,
+    created_at: new Date().toISOString(),
+  });
+
+  await db.from("leads").update({ icp_score: fitScore, score: fitScore }).eq("id", input.leadId).eq("user_id", input.userId);
+
+  return { leadId: input.leadId, fitScore, reasoning, passesThreshold: fitScore >= GATE_THRESHOLDS.icpFit };
+}
+
+function describeIcp(campaign: Record<string, unknown> | null): string {
+  if (!campaign) return "(no campaign context available)";
+  const icpJson = campaign.icp_json && typeof campaign.icp_json === "object" ? JSON.stringify(campaign.icp_json) : "";
+  return [
+    campaign.target_audience ? `Audience: ${campaign.target_audience}` : "",
+    campaign.target_niche ? `Niche: ${campaign.target_niche}` : "",
+    campaign.location ? `Geography: ${campaign.location}` : "",
+    campaign.goal ? `Goal: ${campaign.goal}` : "",
+    campaign.product_offer ? `Offer: ${campaign.product_offer}` : "",
+    icpJson ? `ICP detail: ${icpJson}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }

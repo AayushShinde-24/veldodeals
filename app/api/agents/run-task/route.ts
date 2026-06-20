@@ -10,16 +10,22 @@ export async function POST(request: NextRequest) {
     const body = await readJson<Record<string, unknown>>(request);
     const userId = await getUserIdFromRequest(request, body);
     const taskId = typeof body.task_id === "string" ? body.task_id : null;
-    if (!taskId) return ok(await processQueuedTask(userId));
+    if (!taskId) {
+      // Process the next queued task for this user
+      const db = createServiceClient();
+      const { data: nextTask } = await db
+        .from("agent_tasks")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("status", "queued")
+        .order("priority", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!nextTask) return ok({ message: "No queued tasks." });
+      return ok(await processQueuedTask(nextTask.id));
+    }
 
-    const { data, error } = await createServiceClient()
-      .from("agent_tasks")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("id", taskId)
-      .single();
-    if (error || !data) throw new Error(error?.message ?? "Task not found.");
-    return ok(await runTask(data as AgentTaskRow));
+    return ok(await processQueuedTask(taskId));
   } catch (error) {
     return fail(error);
   }

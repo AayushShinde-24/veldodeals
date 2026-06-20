@@ -1,99 +1,62 @@
-import "server-only";
-
 import { createServiceClient } from "@/lib/integrations/supabase";
-import { getEnv } from "@/lib/security/env";
-import { decryptToken, encryptToken } from "@/src/lib/security/tokens";
+import { fetchWithRetry, isTransientError } from "@/lib/integrations/retry";
 
-export async function getConnectedGoogleAccessToken(workspaceId: string, provider: "gmail" | "google_calendar") {
+export interface GoogleTokenResult {
+  accessToken: string;
+  userId: string;
+  provider: string;
+}
+
+export async function getConnectedGoogleAccessToken(
+  userId: string,
+  provider = "google"
+): Promise<GoogleTokenResult> {
   const db = createServiceClient();
   const { data, error } = await db
-    .from("connected_accounts")
-    .select("*")
-    .eq("workspace_id", workspaceId)
-    .eq("provider", provider)
-    .eq("status", "connected")
-    .order("created_at", { ascending: false })
-    .limit(1)
+    .from("google_tokens")
+    .select("access_token, refresh_token, expires_at")
+    .eq("user_id", userId)
     .maybeSingle();
 
-  if (error) throw new Error(error.message);
-  if (!data?.access_token_encrypted) throw new Error(`${provider} is not connected.`);
-  if (isFresh(data.expires_at)) {
-    return {
-      account: data,
-      accessToken: decryptToken(String(data.access_token_encrypted)),
-    };
+  if (error || !data) {
+    throw new Error("No connected Google account. Connect Gmail in Settings → Integrations.");
   }
 
-  if (!data.refresh_token_encrypted) {
-    await db.from("connected_accounts").update({
-      status: "expired",
-      last_error: "Mailbox refresh token is missing.",
-    }).eq("id", data.id);
-    throw new Error(`${provider} must be reconnected.`);
+  const expiresAt = new Date(data.expires_at ?? 0);
+  if (expiresAt > new Date(Date.now() + 60_000)) {
+    return { accessToken: data.access_token, userId, provider };
   }
 
-  try {
-    const refreshed = await refreshGoogleAccessToken(String(data.refresh_token_encrypted));
-    const expiresAt = refreshed.expires_in ? new Date(Date.now() + refreshed.expires_in * 1000).toISOString() : null;
-    const { data: updated, error: updateError } = await db.from("connected_accounts").update({
-      access_token_encrypted: encryptToken(refreshed.access_token),
-      expires_at: expiresAt,
-      token_type: refreshed.token_type ?? data.token_type ?? "Bearer",
-      status: "connected",
-      last_refresh_at: new Date().toISOString(),
-      last_error: null,
-      scope: refreshed.scope ?? data.scope,
-    }).eq("id", data.id).select("*").single();
-    if (updateError) throw new Error(updateError.message);
-    return {
-      account: updated,
-      accessToken: refreshed.access_token,
-    };
-  } catch (refreshError) {
-    const message = refreshError instanceof Error ? sanitizeProviderError(refreshError.message) : "Mailbox token refresh failed.";
-    await db.from("connected_accounts").update({
-      status: "error",
-      last_error: message,
-    }).eq("id", data.id);
-    throw new Error(`${provider} reconnect required: ${message}`);
+  // Refresh token
+  if (!data.refresh_token) {
+    throw new Error("Access token expired and no refresh token available. Reconnect Gmail.");
   }
-}
 
-function isFresh(expiresAt: string | null | undefined) {
-  if (!expiresAt) return true;
-  return new Date(expiresAt).getTime() - Date.now() > 5 * 60 * 1000;
-}
+  const res = await fetchWithRetry(
+    "https://oauth2.googleapis.com/token",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: data.refresh_token,
+        client_id: process.env.GOOGLE_CLIENT_ID ?? "",
+        client_secret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+      }).toString(),
+    },
+    { provider: "google", endpoint: "oauth.refresh", shouldRetry: isTransientError, timeoutMs: 15_000 }
+  );
 
-async function refreshGoogleAccessToken(encryptedRefreshToken: string) {
-  const env = getEnv();
-  if (!env.GOOGLE_CLIENT_ID || !env.GOOGLE_CLIENT_SECRET) throw new Error("Mailbox connection credentials are not configured.");
-  const response = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: env.GOOGLE_CLIENT_ID,
-      client_secret: env.GOOGLE_CLIENT_SECRET,
-      refresh_token: decryptToken(encryptedRefreshToken),
-      grant_type: "refresh_token",
-    }),
-  });
-  if (!response.ok) throw new Error("Mailbox token refresh failed.");
-  const json = await response.json() as {
-    access_token?: string;
-    expires_in?: number;
-    scope?: string;
-    token_type?: string;
-  };
-  if (!json.access_token) throw new Error("Mailbox token refresh returned no access token.");
-  return {
-    access_token: json.access_token,
-    expires_in: json.expires_in,
-    scope: json.scope,
-    token_type: json.token_type,
-  };
-}
+  if (!res.ok) throw new Error("Failed to refresh Google access token. Reconnect Gmail.");
 
-function sanitizeProviderError(message: string) {
-  return message.replace(/\bGoogle\b|\bGmail\b/giu, "mailbox").replace(/\bOAuth\b/gu, "connection");
+  const refreshed = (await res.json()) as { access_token: string; expires_in: number };
+  await db
+    .from("google_tokens")
+    .update({
+      access_token: refreshed.access_token,
+      expires_at: new Date(Date.now() + refreshed.expires_in * 1000).toISOString(),
+    })
+    .eq("user_id", userId);
+
+  return { accessToken: refreshed.access_token, userId, provider };
 }

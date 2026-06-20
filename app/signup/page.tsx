@@ -13,7 +13,7 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
           <h1>Launch with review-first outbound, not risky automation.</h1>
           <p>Veldo coordinates research, ICP scoring, personalization, QA, verification, approvals, sending, follow-ups, and reply learning from one operating system.</p>
           <div className="auth-proof-list">
-            {["AI routing stays server-side", "Validated agent outputs", "Credits deducted after successful sends"].map((item) => (
+            {["Campaign decisions are logged", "Validated agent outputs", "Credits deducted after successful sends"].map((item) => (
               <span key={item}><CheckCircle2 size={16} />{item}</span>
             ))}
           </div>
@@ -32,7 +32,7 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
           </form>
           <div className="auth-security-note">
             <ShieldCheck size={16} />
-            <span>No frontend secrets. Human approval is required before production sends.</span>
+            <span>Human approval is required before production sends.</span>
           </div>
         </section>
       </div>

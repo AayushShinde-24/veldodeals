@@ -68,8 +68,8 @@ const readyEvent: VelEvent = {
 };
 
 const liveEvents: VelEvent[] = [
-  { agent: "Vel", step: "Understanding", status: "completed", message: "Reading the request and preparing a tracked task.", api: "AI routing", progress: 12 },
-  { agent: "Campaign Leader", step: "Strategy", status: "running", message: "Routing the next safest specialist step.", api: "Workspace data", progress: 24 },
+  { agent: "Vel", step: "Understanding", status: "completed", message: "Reading the request and preparing a tracked task.", progress: 12 },
+  { agent: "Campaign Leader", step: "Strategy", status: "running", message: "Routing the next safest specialist step.", progress: 24 },
   { agent: "Lead Agent", step: "Lead search", status: "pending", message: "Waiting for campaign strategy and available lead sources.", progress: 38 },
   { agent: "Research Agent", step: "Research", status: "pending", message: "Company research and public signals will be saved with confidence.", progress: 52 },
   { agent: "Copywriting Agent", step: "Drafting", status: "pending", message: "Drafts stay review-gated before sending.", progress: 68 },
@@ -165,10 +165,10 @@ export function VeldoChatClient() {
         <header className="vel-chat-hero">
           <div>
             <span className="premium-eyebrow">Veldo Chat</span>
-            <h1>What should your AI sales team do next?</h1>
-            <p>Chat with Vel like a real AI assistant. It routes the Campaign Leader, lead, research, drafting, QA, sending, follow-up, and reply agents while showing live process state.</p>
+            <h1>What should Vel do next?</h1>
+            <p>Ask Vel to create the campaign, find leads, research companies, draft emails, run QA, and prepare everything for human approval.</p>
           </div>
-          <Badge tone="green">AI routing + safety gates</Badge>
+          <Badge tone="green">Campaign Leader + safety gates</Badge>
         </header>
 
         <div className="vel-process-strip" aria-label="Agent process states">
@@ -189,7 +189,7 @@ export function VeldoChatClient() {
               <div className="vel-chat-bubble">
                 <div className="vel-chat-meta">
                   <strong>{message.role === "user" ? "You" : "Vel"}</strong>
-                  {message.role !== "user" ? <span>AI sales team OS</span> : null}
+                  {message.role !== "user" ? <span>Sales team OS</span> : null}
                 </div>
                 <p>{message.content}</p>
                 {message.metadata?.questions?.length ? (
@@ -270,7 +270,7 @@ export function VeldoChatClient() {
                 </span>
                 <div>
                   <strong>{event.step}</strong>
-                  <p>{event.agent}{event.api ? ` / ${event.api}` : ""}</p>
+                  <p>{event.agent}</p>
                   <span>{event.message}</span>
                 </div>
               </div>
@@ -281,11 +281,11 @@ export function VeldoChatClient() {
           <div className="premium-section-head">
             <div>
               <h2>Execution Gates</h2>
-              <p>Drafting, sending, sent state, follow-up, and replies are visible without exposing server secrets.</p>
+              <p>Drafts, gate checks, sending readiness, follow-up, and replies stay visible while provider details stay protected.</p>
             </div>
             <ShieldCheck size={18} color="var(--success)" />
           </div>
-          {["AI model and API key stay server-side", "Drafts require QA score 80+", "Sends require approval and mailbox readiness", "Sent status saves delivery thread ID"].map((item) => (
+          {["Drafts require QA score 80+", "Human approval is mandatory", "Mailbox and credits must be ready", "Unsubscribe and compliance checks must pass"].map((item) => (
             <div className="premium-list-row" key={item}>
               <span>{item}</span>
               <CheckCircle2 size={14} color="var(--success)" />

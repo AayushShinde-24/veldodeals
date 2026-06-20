@@ -1,0 +1,20 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/process-agent-tasks",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/send-followups",
+      "schedule": "0 */4 * * *"
+    },
+    {
+      "path": "/api/cron/grant-credits",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/advance-sequences",
+      "schedule": "0 * * * *"
+    }
+  ]
+}

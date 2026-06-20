@@ -5,7 +5,8 @@ import { getCurrentUser } from "@/lib/auth/server";
 import { createCheckoutSession } from "@/lib/integrations/billing-provider";
 
 const schema = z.object({
-  plan: z.enum(["free", "starter", "go", "pro", "plus", "grow", "expand", "advanced_expansion", "custom_enterprise"]),
+  plan: z.enum(["solo", "team", "scale", "enterprise", "enterprise_plus", "enterprise_max", "custom"]),
+  mode: z.enum(["subscription", "addon"]).default("subscription"),
   hyperPersonalization: z.boolean().optional(),
 });
 
@@ -18,6 +19,7 @@ export async function POST(request: NextRequest) {
     return ok(await createCheckoutSession({
       userId: user.id,
       plan: input.plan,
+      mode: input.mode,
       hyperPersonalization: input.hyperPersonalization,
       successUrl: `${baseUrl}/billing?checkout=success`,
       cancelUrl: `${baseUrl}/pricing?checkout=cancelled`,

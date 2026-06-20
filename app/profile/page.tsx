@@ -6,7 +6,8 @@ import { saveProfileAction } from "./actions";
 
 export default async function ProfilePage({ searchParams }: { searchParams: UiSearchParams }) {
   const userId = await resolveUserId(searchParams);
-  const { profile } = await getWorkspaceContext(userId);
+  const context = await getWorkspaceContext(userId);
+  const profile = context?.profile;
   return (
     <PageShell>
       <PageHeader

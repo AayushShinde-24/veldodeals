@@ -26,11 +26,20 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Ui
         <GlassCard><SectionHeader title="Operational trend" description="Live activity volume by record type." /><Bars values={bars} /></GlassCard>
         <GlassCard>
           <SectionHeader title="Recommended changes" description="Persisted learning-loop outputs." />
-          <DataTable
-            headers={["Campaign", "Summary", "Recommended change"]}
-            rows={data.learnings.map((learning) => [learning.campaign_id, learning.summary, learning.recommended_change ?? ""])}
-            empty={<EmptyState title="No recommendations yet" description="Analytics Learning Agent will save recommendations after campaigns have enough activity." />}
-          />
+          {sendCount === 0 ? (
+            <EmptyState
+              icon={BarChart3}
+              title="No data yet"
+              description="Analytics appear once your campaigns start sending emails. Create a campaign and approve your first batch to see results here."
+              action={<a className="btn primary" href="/campaigns/new">Start a campaign</a>}
+            />
+          ) : (
+            <DataTable
+              headers={["Campaign", "Summary", "Recommended change"]}
+              rows={data.learnings.map((learning) => [learning.campaign_id, learning.summary, learning.recommended_change ?? ""])}
+              empty={<EmptyState title="No recommendations yet" description="Analytics Learning Agent will save recommendations after campaigns have enough activity." />}
+            />
+          )}
         </GlassCard>
       </section>
     </PageShell>

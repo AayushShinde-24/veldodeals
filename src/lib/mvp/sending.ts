@@ -1,132 +1,127 @@
-import "server-only";
-
 import { createServiceClient } from "@/lib/integrations/supabase";
-import { assertCreditsAvailable, recordCreditUsage } from "@/lib/billing/credits";
+import { runSendGates } from "@/lib/agents/send-gate-agent";
 import { getConnectedGoogleAccessToken } from "@/src/lib/apis/google/connected-account";
 import { sendGmailMessage } from "@/src/lib/apis/google/gmail-client";
-import { assertComplianceReady } from "@/src/lib/mvp/compliance";
-import { logMvpError } from "@/src/lib/mvp/error-log";
-import { assertCanSendByUsage, incrementUsage } from "@/src/lib/mvp/usage";
-import { appendComplianceFooter, buildUnsubscribeLink, hasComplianceFooter, isUnsubscribed } from "@/src/lib/mvp/unsubscribe";
-import { ensureDefaultWorkspace } from "@/src/lib/workspace/context";
-import { runGeneratedEmailSafetyCheck } from "@/src/lib/mvp/email-queue";
+import { appendComplianceFooter, buildUnsubscribeLink, isUnsubscribed } from "@/src/lib/mvp/unsubscribe";
+import { deductCredits } from "@/lib/billing/credits";
+import { checkSendCompliance } from "@/src/lib/mvp/compliance";
+import { trackEvent } from "@/src/lib/analytics/events";
+import { emitCustomerWebhook } from "@/lib/webhooks/customer";
 
-export async function approveGeneratedEmail(input: { userId: string; generatedEmailId: string; subject?: string; body?: string }) {
+export async function approveGeneratedEmail(
+  userIdOrOptions: string | { userId: string; generatedEmailId?: string; draftId?: string; subject?: string; body?: string },
+  draftId?: string
+): Promise<{ approved: boolean; draftId: string }> {
+  const userId = typeof userIdOrOptions === "string" ? userIdOrOptions : userIdOrOptions.userId;
+  const id = typeof userIdOrOptions === "string" ? (draftId ?? "") : (userIdOrOptions.generatedEmailId ?? userIdOrOptions.draftId ?? "");
   const db = createServiceClient();
-  const { data: email, error } = await db
-    .from("generated_emails")
-    .select("*")
-    .eq("id", input.generatedEmailId)
-    .eq("user_id", input.userId)
-    .single();
-  if (error || !email) throw new Error("Generated email not found.");
 
-  const update = {
-    status: "approved",
-    edited_subject: input.subject || email.subject,
-    edited_body: input.body || email.body,
-  };
-  const { data, error: updateError } = await db
+  const updates: Record<string, unknown> = { approval_status: "approved", approved_at: new Date().toISOString() };
+  if (typeof userIdOrOptions === "object" && userIdOrOptions.subject) updates.subject = userIdOrOptions.subject;
+  if (typeof userIdOrOptions === "object" && userIdOrOptions.body) updates.body = userIdOrOptions.body;
+
+  const { error } = await db
     .from("generated_emails")
-    .update(update)
-    .eq("id", input.generatedEmailId)
-    .select("*")
-    .single();
-  if (updateError) throw new Error(updateError.message);
-  return data;
+    .update(updates)
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) throw new Error(`Failed to approve draft: ${error.message}`);
+  return { approved: true, draftId: id };
 }
 
-export async function sendGeneratedEmail(input: { userId: string; generatedEmailId: string }) {
-  const db = createServiceClient();
-  const { data: generated, error } = await db
-    .from("generated_emails")
-    .select("*, leads(*), campaigns(*)")
-    .eq("id", input.generatedEmailId)
-    .eq("user_id", input.userId)
-    .single();
-  if (error || !generated) throw new Error("Generated email not found.");
+export async function sendGeneratedEmail(
+  userIdOrOptions: string | { userId: string; generatedEmailId?: string; draftId?: string },
+  draftId?: string
+): Promise<{ success: boolean; messageId?: string; blocked?: string[] }> {
+  const userId = typeof userIdOrOptions === "string" ? userIdOrOptions : userIdOrOptions.userId;
+  const id = typeof userIdOrOptions === "string" ? (draftId ?? "") : (userIdOrOptions.generatedEmailId ?? userIdOrOptions.draftId ?? "");
+  return sendApprovedDraft(userId, id);
+}
 
-  const lead = Array.isArray(generated.leads) ? generated.leads[0] : generated.leads;
-  const campaign = Array.isArray(generated.campaigns) ? generated.campaigns[0] : generated.campaigns;
-  const campaignId = String(generated.campaign_id);
-  const leadId = String(generated.lead_id);
-
-  const baseSendRecord = {
-    user_id: input.userId,
-    campaign_id: campaignId,
-    lead_id: leadId,
-    generated_email_id: input.generatedEmailId,
-    provider: "gmail",
-  };
-
-  try {
-    if (generated.status !== "approved") throw new Error("User approval is required before sending.");
-    const safety = await runGeneratedEmailSafetyCheck({
-      userId: input.userId,
-      generatedEmailId: input.generatedEmailId,
-      campaignId,
-      mode: String(campaign?.sending_mode) === "auto_send" ? "auto_send" : "approval_required",
-      requireConnectedAccount: true,
-    });
-    if (!safety.passed) throw new Error(safety.issues.join(" "));
-    const compliance = await assertComplianceReady(input.userId, campaignId);
-    if (!lead?.email) throw new Error("Lead email is required.");
-    if (await isUnsubscribed({ userId: input.userId, email: String(lead.email) })) {
-      await db.from("email_sends").insert({ ...baseSendRecord, status: "blocked_unsubscribed", failure_reason: "Lead unsubscribed." });
-      throw new Error("Lead is unsubscribed.");
-    }
-    await assertCanSendByUsage(input.userId);
-    await assertCreditsAvailable({ userId: input.userId, action: "email_send" });
-    if (!["ready_to_send", "sending"].includes(String(campaign?.status))) {
-      throw new Error("Campaign must be ready_to_send or sending.");
-    }
-
-    const workspaceId = String(campaign.workspace_id ?? (await ensureDefaultWorkspace(input.userId)).workspaceId);
-    const google = await getConnectedGoogleAccessToken(workspaceId, "gmail");
-    const subject = String(generated.edited_subject || generated.subject);
-    const rawBody = String(generated.edited_body || generated.body);
-    const bodyWithFooter = appendComplianceFooter({
-      body: rawBody,
-      compliance,
-      unsubscribeLink: buildUnsubscribeLink({ email: String(lead.email), campaignId }),
-    });
-    if (!hasComplianceFooter(bodyWithFooter)) throw new Error("Email compliance footer is missing.");
-
-    await db.from("campaigns").update({ status: "sending" }).eq("id", campaignId);
-    const sent = await sendGmailMessage({
-      accessToken: google.accessToken,
-      to: String(lead.email),
-      subject,
-      body: bodyWithFooter,
-    });
-    const accounting = await recordCreditUsage({
-      userId: input.userId,
-      workspaceId,
-      campaignId,
-      leadId,
-      action: "email_send",
-      metadata: { provider: "gmail", provider_message_id: sent.id, generated_email_id: input.generatedEmailId },
-    });
-    const { data: sendRecord, error: sendError } = await db.from("email_sends").insert({
-      ...baseSendRecord,
-      workspace_id: workspaceId,
-      provider_message_id: sent.id,
-      status: "sent",
-      sent_at: new Date().toISOString(),
-      credits_used: accounting.creditsUsed,
-    }).select("*").single();
-    if (sendError) throw new Error(sendError.message);
-    await db.from("generated_emails").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", input.generatedEmailId);
-    await db.from("leads").update({ status: "sent", stage: "sent" }).eq("id", leadId);
-    await incrementUsage(input.userId, "emails_sent", 1);
-    return sendRecord;
-  } catch (sendError) {
-    const reason = sendError instanceof Error ? sendError.message : "Send failed.";
-    const status = reason.includes("compliance") || reason.includes("Complete compliance") ? "blocked_compliance" :
-      reason.includes("limit") ? "blocked_limit" :
-        reason.includes("unsubscribed") ? "blocked_unsubscribed" : "failed";
-    await db.from("email_sends").insert({ ...baseSendRecord, status, failure_reason: reason });
-    await logMvpError({ userId: input.userId, campaignId, source: "gmail", errorCode: status, error: sendError });
-    throw sendError;
+export async function sendApprovedDraft(
+  userId: string,
+  draftId: string
+): Promise<{ success: boolean; messageId?: string; blocked?: string[] }> {
+  const gateResult = await runSendGates(userId, draftId);
+  if (!gateResult.passed) {
+    return { success: false, blocked: gateResult.blockers };
   }
+
+  const db = createServiceClient();
+  const { data: draft } = await db
+    .from("email_drafts")
+    .select("*")
+    .eq("id", draftId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (!draft) throw new Error("Draft not found.");
+
+  // Check unsubscribe list
+  const unsubscribed = await isUnsubscribed(draft.to_email, userId);
+  if (unsubscribed) {
+    return { success: false, blocked: ["Email address is on the unsubscribe list."] };
+  }
+
+  const compliance = await checkSendCompliance(userId, draft.to_email);
+  if (!compliance.allowed) {
+    return { success: false, blocked: [compliance.reason ?? "Compliance policy blocked this send."] };
+  }
+
+  // Deduct credits before sending
+  const creditResult = await deductCredits(userId, "email_send", 1);
+  if (!creditResult.success) {
+    return { success: false, blocked: [creditResult.error ?? "Insufficient credits."] };
+  }
+
+  // Get sending access token
+  const { accessToken } = await getConnectedGoogleAccessToken(userId);
+
+  // Append compliance footer
+  const unsubscribeUrl = buildUnsubscribeLink(draft.to_email, userId);
+  const htmlBody = appendComplianceFooter({
+    body: draft.html_body ?? draft.body ?? "",
+    email: draft.to_email,
+    userId,
+    unsubscribeLink: unsubscribeUrl,
+  });
+
+  // Send via Gmail
+  const result = await sendGmailMessage({
+    accessToken,
+    to: draft.to_email,
+    subject: draft.subject,
+    htmlBody,
+    textBody: draft.text_body ?? undefined,
+    listUnsubscribeUrl: unsubscribeUrl,
+  });
+
+  // Record the send
+  await db.from("email_sends").insert({
+    user_id: userId,
+    draft_id: draftId,
+    campaign_id: draft.campaign_id,
+    lead_id: draft.lead_id,
+    to_email: draft.to_email,
+    subject: draft.subject,
+    gmail_message_id: result.messageId,
+    gmail_thread_id: result.threadId,
+    status: "sent",
+    sent_at: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+  });
+  await trackEvent({ userId, event: "first_send", entityId: draftId, properties: { campaign_id: draft.campaign_id } });
+  await emitCustomerWebhook({
+    userId,
+    event: "email.sent",
+    payload: { draft_id: draftId, campaign_id: draft.campaign_id, lead_id: draft.lead_id, to: draft.to_email },
+  });
+
+  // Update draft status
+  await db
+    .from("email_drafts")
+    .update({ status: "sent", sent_at: new Date().toISOString() })
+    .eq("id", draftId);
+
+  return { success: true, messageId: result.messageId };
 }

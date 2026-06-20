@@ -39,7 +39,12 @@ export default async function CrmPage({ searchParams }: { searchParams: UiSearch
               ))}
             </div>
           ) : (
-            <EmptyState title="No CRM deals yet" description="Interested replies and CRM sync events will populate this board once campaigns start receiving responses." />
+            <EmptyState
+              icon={Handshake}
+              title="No CRM deals yet"
+              description="Deals are created automatically when leads reply with interest. Start a campaign and send approved emails to get your first deals."
+              action={<a className="btn primary" href="/campaigns">View campaigns</a>}
+            />
           )}
         </GlassCard>
         <GlassCard>

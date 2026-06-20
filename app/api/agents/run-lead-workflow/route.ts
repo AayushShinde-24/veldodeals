@@ -15,10 +15,9 @@ export async function POST(request: NextRequest) {
     const body = await readJson<Record<string, unknown>>(request);
     const userId = await getUserIdFromRequest(request, body);
     const input = schema.parse(body);
-    return ok(await runLeadOutboundWorkflow({
-      userId,
-      campaignId: input.campaign_id,
+    return ok(await runLeadOutboundWorkflow(userId, {
       leadId: input.lead_id,
+      campaignId: input.campaign_id,
       cheapDraft: input.cheap_draft === true,
     }));
   } catch (error) {

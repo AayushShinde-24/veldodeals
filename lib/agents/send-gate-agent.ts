@@ -1,115 +1,197 @@
-import "server-only";
+import { createServiceClient } from "@/lib/integrations/supabase";
 
-import { fetchLeadBundle, getDb, logAgent, saveDecision } from "@/lib/agents/agent-helpers";
-import { sendGateOutputSchema, type AgentContext, type SendGateOutput } from "@/lib/agents/schemas";
-import { getOptionalEnv } from "@/lib/security/env";
-import { evaluateSendGates } from "@/src/lib/email/gates";
-import { assertComplianceReady } from "@/src/lib/mvp/compliance";
-import { getUsageSnapshot } from "@/src/lib/mvp/usage";
-import { isUnsubscribed } from "@/src/lib/mvp/unsubscribe";
-
-export async function runSendGateAgent(_input: Record<string, unknown>, context: AgentContext): Promise<SendGateOutput> {
-  if (!context.leadId || !context.campaignId) throw new Error("campaign_id and lead_id are required for send gates.");
-  const db = getDb();
-  const bundle = await fetchLeadBundle(db, context.leadId);
-  const { data: user } = await db.from("users").select("credits_balance").eq("id", context.userId).single();
-  const { data: campaign } = await db.from("campaigns").select("workspace_id,sending_mode").eq("id", context.campaignId).single();
-  if (!user) throw new Error("User not found.");
-  if (!campaign) throw new Error("Campaign not found.");
-
-  const email = String(bundle.lead.email ?? "");
-  const [complianceReady, unsubscribed, usage, duplicateRecipient, connectedSendingAccount] = await Promise.all([
-    assertComplianceReady(context.userId, context.campaignId).then(() => true).catch(() => false),
-    email ? isUnsubscribed({ userId: context.userId, email }).catch(() => true) : Promise.resolve(true),
-    getUsageSnapshot(context.userId).catch(() => ({ remainingToday: 0 })),
-    hasDuplicateRecipient(context.userId, context.campaignId, context.leadId, email),
-    hasConnectedGmailAccount(String(campaign.workspace_id ?? "")),
-  ]);
-  const allowlist = getSendAllowlist();
-  const requireAllowlist = String(campaign.sending_mode ?? "") === "auto_send" || allowlist.length > 0;
-
-  const gates = evaluateSendGates({
-    lead: bundle.lead,
-    icpScore: bundle.icpScore,
-    research: bundle.companyResearch,
-    emailScore: bundle.emailScore,
-    verification: bundle.verification,
-    strategy: bundle.personalization,
-    draft: bundle.email,
-    credits: Number(user.credits_balance ?? 0),
-    notUnsubscribed: !unsubscribed,
-    complianceReady,
-    dailySendingRemaining: Number(usage.remainingToday ?? 0),
-    duplicateRecipient,
-    requireConnectedSendingAccount: true,
-    connectedSendingAccount,
-    requireAllowlist,
-    sendAllowlisted: email ? isAllowlisted(email, allowlist) : false,
-  });
-
-  const output = sendGateOutputSchema.parse({
-    lead_id: context.leadId,
-    campaign_id: context.campaignId,
-    eligible_to_send: gates.pass,
-    checks: gates.checks,
-    failures: gates.failures,
-    needs_review: !gates.pass,
-    decision: gates.pass ? "send" : gates.failures.some((failure) => /approval|review/i.test(failure)) ? "review" : "blocked",
-  });
-
-  await db.from("send_gate_results").upsert({
-    user_id: context.userId,
-    campaign_id: context.campaignId,
-    lead_id: context.leadId,
-    eligible_to_send: output.eligible_to_send,
-    checks: output.checks,
-    failures: output.failures,
-    needs_review: output.needs_review,
-    decision: output.decision,
-  }, { onConflict: "lead_id" });
-
-  await logAgent(db, { ...context, agentName: "send_gate" }, "Send gates evaluated.", "info", { decision: output.decision, failures: output.failures.length });
-  await saveDecision(db, { ...context, agentName: "send_gate" }, output, output.eligible_to_send ? 95 : 55, output.needs_review);
-  return output;
+export interface SendGateResult {
+  passed: boolean;
+  gates: {
+    icpFit: { passed: boolean; score: number; threshold: number };
+    researchConfidence: { passed: boolean; score: number; threshold: number };
+    emailScore: { passed: boolean; score: number; threshold: number };
+    emailVerified: { passed: boolean };
+    humanApproved: { passed: boolean };
+    creditsAvailable: { passed: boolean; credits: number };
+    personalizationRisk: { passed: boolean; risk: string };
+  };
+  blockers: string[];
 }
 
-async function hasDuplicateRecipient(userId: string, campaignId: string, leadId: string, email: string) {
-  if (!email) return true;
-  const { data } = await getDb()
-    .from("leads")
-    .select("id")
-    .eq("user_id", userId)
-    .eq("campaign_id", campaignId)
-    .ilike("email", email);
-  return (data ?? []).some((lead) => String(lead.id) !== leadId);
+export interface GateInput {
+  credits: number;
+  icpScore: number;
+  researchScore: number;
+  emailScore: number;
+  emailVerified: boolean;
+  humanApproved: boolean;
+  personalizationRisk: string;
 }
 
-async function hasConnectedGmailAccount(workspaceId: string) {
-  if (!workspaceId) return false;
-  const { data } = await getDb()
-    .from("connected_accounts")
+export const GATE_THRESHOLDS = { icpFit: 50, researchConfidence: 60, emailScore: 75 } as const;
+
+/**
+ * Pure send-gate evaluation — the 7 gates that must ALL pass before any email sends.
+ * Side-effect-free so it can be unit-tested without a database.
+ */
+export function evaluateSendGates(input: GateInput): SendGateResult {
+  const gates = {
+    icpFit: { passed: input.icpScore >= GATE_THRESHOLDS.icpFit, score: input.icpScore, threshold: GATE_THRESHOLDS.icpFit },
+    researchConfidence: { passed: input.researchScore >= GATE_THRESHOLDS.researchConfidence, score: input.researchScore, threshold: GATE_THRESHOLDS.researchConfidence },
+    emailScore: { passed: input.emailScore >= GATE_THRESHOLDS.emailScore, score: input.emailScore, threshold: GATE_THRESHOLDS.emailScore },
+    emailVerified: { passed: input.emailVerified },
+    humanApproved: { passed: input.humanApproved },
+    creditsAvailable: { passed: input.credits > 0, credits: input.credits },
+    personalizationRisk: { passed: input.personalizationRisk !== "high", risk: input.personalizationRisk },
+  };
+
+  const blockers: string[] = [];
+  if (!gates.icpFit.passed) blockers.push(`ICP fit score ${input.icpScore} below ${GATE_THRESHOLDS.icpFit} threshold.`);
+  if (!gates.researchConfidence.passed) blockers.push(`Research confidence ${input.researchScore} below ${GATE_THRESHOLDS.researchConfidence} threshold.`);
+  if (!gates.emailScore.passed) blockers.push(`Email score ${input.emailScore} below ${GATE_THRESHOLDS.emailScore} threshold.`);
+  if (!gates.emailVerified.passed) blockers.push("Email address not verified.");
+  if (!gates.humanApproved.passed) blockers.push("Draft pending human approval.");
+  if (!gates.creditsAvailable.passed) blockers.push("Insufficient credits.");
+  if (!gates.personalizationRisk.passed) blockers.push("Personalization risk is too high.");
+
+  return { passed: blockers.length === 0, gates, blockers };
+}
+
+/** Context-form entry: resolves the draft for a campaign/lead, then runs the gates. */
+export async function runSendGateAgent(
+  _input: unknown,
+  ctx: { userId: string; campaignId: string; leadId: string }
+): Promise<SendGateResult> {
+  const db = createServiceClient();
+  const { data: draft } = await db
+    .from("email_drafts")
     .select("id")
-    .eq("workspace_id", workspaceId)
-    .eq("provider", "gmail")
-    .eq("status", "connected")
+    .eq("user_id", ctx.userId)
+    .eq("campaign_id", ctx.campaignId)
+    .eq("lead_id", ctx.leadId)
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  return Boolean(data?.id);
+
+  if (!draft?.id) {
+    return {
+      passed: false,
+      gates: {
+        icpFit: { passed: false, score: 0, threshold: 50 },
+        researchConfidence: { passed: false, score: 0, threshold: 60 },
+        emailScore: { passed: false, score: 0, threshold: 75 },
+        emailVerified: { passed: false },
+        humanApproved: { passed: false },
+        creditsAvailable: { passed: false, credits: 0 },
+        personalizationRisk: { passed: false, risk: "high" },
+      },
+      blockers: ["No draft found for this lead yet."],
+    };
+  }
+
+  return runSendGates(ctx.userId, draft.id);
 }
 
-function getSendAllowlist() {
-  return (getOptionalEnv()?.VELDO_SEND_ALLOWLIST ?? "")
-    .split(",")
-    .map((item) => item.trim().toLowerCase())
-    .filter(Boolean);
+export async function runSendGates(
+  userId: string,
+  draftId: string
+): Promise<SendGateResult> {
+  const db = createServiceClient();
+
+  // MVP path: a self-contained email_drafts row carries its own gate fields.
+  const { data: draft } = await db
+    .from("email_drafts")
+    .select("*")
+    .eq("id", draftId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const { data: profile } = await db
+    .from("profiles")
+    .select("credits")
+    .eq("id", userId)
+    .maybeSingle();
+  const credits = profile?.credits ?? 0;
+
+  if (draft) {
+    return evaluateSendGates({
+      credits,
+      icpScore: draft.icp_score ?? 0,
+      researchScore: draft.research_confidence ?? 0,
+      emailScore: draft.email_score ?? 0,
+      emailVerified: draft.email_verified === true,
+      humanApproved: draft.approved === true,
+      personalizationRisk: draft.personalization_risk ?? "high",
+    });
+  }
+
+  // Agent pipeline path: gate inputs live across generated_emails + the lead's score
+  // tables (icp_scores / company_research / email_scores / email_verifications).
+  return runSendGatesForGeneratedEmail(userId, draftId, credits);
 }
 
-function isAllowlisted(email: string, allowlist: string[]) {
-  if (!allowlist.length) return true;
-  const normalized = email.toLowerCase();
-  const domain = normalized.split("@")[1] ?? "";
-  return allowlist.some((item) => {
-    const clean = item.startsWith("@") ? item.slice(1) : item;
-    return normalized === item || domain === clean;
+/**
+ * Gather the 7 gate inputs for an agent-produced draft from the canonical tables and
+ * evaluate them. This is what enforces the gates on the autonomous outbound pipeline.
+ */
+export async function runSendGatesForGeneratedEmail(
+  userId: string,
+  generatedEmailId: string,
+  knownCredits?: number
+): Promise<SendGateResult> {
+  const db = createServiceClient();
+
+  const { data: gen } = await db
+    .from("generated_emails")
+    .select("lead_id, approval_status, personalization_risk, email_score")
+    .eq("id", generatedEmailId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (!gen) throw new Error(`Draft ${generatedEmailId} not found.`);
+  const leadId = gen.lead_id;
+
+  const [credits, icp, research, score, verification] = await Promise.all([
+    knownCredits !== undefined
+      ? Promise.resolve(knownCredits)
+      : db.from("profiles").select("credits").eq("id", userId).maybeSingle().then((r) => r.data?.credits ?? 0),
+    latest(db, "icp_scores", "fit_score", userId, leadId),
+    latest(db, "company_research", "confidence", userId, leadId),
+    latest(db, "email_scores", "score", userId, leadId),
+    db
+      .from("email_verifications")
+      .select("status")
+      .eq("user_id", userId)
+      .eq("lead_id", leadId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then((r) => r.data?.status ?? null),
+  ]);
+
+  return evaluateSendGates({
+    credits: typeof credits === "number" ? credits : 0,
+    icpScore: icp,
+    researchScore: research,
+    emailScore: gen.email_score ?? score,
+    emailVerified: verification === "valid" || verification === "verified",
+    humanApproved: gen.approval_status === "approved",
+    personalizationRisk: gen.personalization_risk ?? "high",
   });
+}
+
+async function latest(
+  db: ReturnType<typeof createServiceClient>,
+  table: string,
+  column: string,
+  userId: string,
+  leadId: string | null
+): Promise<number> {
+  if (!leadId) return 0;
+  const { data } = await db
+    .from(table)
+    .select(column)
+    .eq("user_id", userId)
+    .eq("lead_id", leadId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const value = (data as Record<string, unknown> | null)?.[column];
+  return typeof value === "number" ? value : Number(value ?? 0) || 0;
 }

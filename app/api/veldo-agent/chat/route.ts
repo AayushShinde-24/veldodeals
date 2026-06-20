@@ -4,6 +4,7 @@ import { ok, fail } from "@/lib/api/responses";
 import { getCurrentUser } from "@/lib/auth/server";
 import { createServiceClient } from "@/lib/integrations/supabase";
 import { runVeldoAgent } from "@/src/lib/veldo-agent/orchestrator";
+import { applyPolicy } from "@/lib/security/rate-limit";
 
 const schema = z.object({
   threadId: z.string().uuid().optional().nullable(),
@@ -14,6 +15,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) throw new Error("Sign in before using Veldo Agent.");
+    if (!applyPolicy(user.id, "agent_chat")) return fail("Too many requests. Please slow down.", 429);
     const input = schema.parse(await request.json());
     return ok(await runVeldoAgent({ userId: user.id, threadId: input.threadId, message: input.message }));
   } catch (error) {

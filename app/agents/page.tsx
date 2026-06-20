@@ -42,7 +42,7 @@ export default async function AgentsPage({ searchParams }: { searchParams: UiSea
   );
 }
 
-function stageStatus(agent: string, tasks: Array<{ agent_name: string; status: string }>) {
+function stageStatus(agent: string, tasks: Array<{ agent_name: string | null; status: string }>) {
   const agentTasks = tasks.filter((task) => task.agent_name === agent);
   if (agentTasks.some((task) => task.status === "running")) return "running";
   if (agentTasks.some((task) => ["failed", "blocked"].includes(task.status))) return "blocked";

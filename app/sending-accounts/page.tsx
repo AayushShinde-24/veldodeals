@@ -12,7 +12,7 @@ export default async function SendingAccountsPage({ searchParams }: { searchPara
   const resend = getIntegrationStatus().find((item) => item.label === "Fallback sender");
   const usage = userId ? await getUsageSnapshot(userId) : null;
   const googleState = googleUiState(gmail?.status);
-  const notice = params.connected ? "Mailbox connected." : params.disconnected ? "Mailbox disconnected." : params.error ? String(params.error) : null;
+  const notice = params?.connected ? "Mailbox connected." : params?.disconnected ? "Mailbox disconnected." : params?.error ? String(params.error) : null;
   return (
     <PageShell>
       <PageHeader
@@ -21,15 +21,15 @@ export default async function SendingAccountsPage({ searchParams }: { searchPara
         description="Your connected mailbox is the primary sender. Auto-send still requires explicit user choice, safety checks, allowlist, and daily limits."
         actions={<MailboxActions connected={gmail?.status === "connected"} />}
       />
-      {notice ? <div className={params.error ? "agent-error" : "status completed"}>{notice}</div> : null}
+      {notice ? <div className={params?.error ? "agent-error" : "status completed"}>{notice}</div> : null}
       <section className="grid cols-3">
         <MetricCard icon={Send} label="Mailbox state" value={googleState.label} trend={gmail?.email ?? "Connect mailbox"} tone={googleState.tone} />
-        <MetricCard icon={MailCheck} label="Backup sender" value={resend?.configured ? "Ready" : "Blocked"} trend="Server-side only" tone={resend?.configured ? "green" : "orange"} />
+        <MetricCard icon={MailCheck} label="Backup sender" value={resend?.configured ? "Ready" : "Blocked"} trend="Workspace controlled" tone={resend?.configured ? "green" : "orange"} />
         <MetricCard icon={ShieldCheck} label="Daily limit" value={usage ? `${usage.remainingToday}/${usage.dailyLimit}` : "Gated"} trend="Auto-send uses safe batches" tone="violet" />
       </section>
       <section className="grid cols-2">
         <GlassCard>
-          <SectionHeader title="Provider readiness" description="Secrets and OAuth tokens stay server-side; this view only shows configured status." action={<Send size={18} color="var(--cyan)" />} />
+          <SectionHeader title="Sender readiness" description="This view only shows whether sending prerequisites are ready." action={<Send size={18} color="var(--cyan)" />} />
           <div className="premium-list-row"><span>Mailbox account</span><StatusPill status={gmail?.status ?? "setup_required"} /></div>
           <div className="premium-list-row"><span>Mailbox address</span><strong>{gmail?.email ?? "Not connected"}</strong></div>
           <div className="premium-list-row"><span>Reconnect required</span><StatusPill status={["expired", "error"].includes(String(gmail?.status)) ? "blocked" : "completed"} /></div>

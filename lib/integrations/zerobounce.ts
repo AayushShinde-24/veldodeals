@@ -1,36 +1,66 @@
-import "server-only";
+import { createServiceClient } from "@/lib/integrations/supabase";
+import { fetchWithRetry, isTransientError } from "@/lib/integrations/retry";
 
-import { getEnv, hasSecret } from "@/lib/security/env";
-import { withRetry } from "@/lib/integrations/retry";
-
-export type ZeroBounceStatus = "valid" | "invalid" | "catch-all" | "spamtrap" | "abuse" | "do_not_mail" | "unknown";
-
-export async function verifyWithZeroBounce(email: string, userId: string, campaignId?: string, leadId?: string) {
-  const env = getEnv();
-  if (!hasSecret("ZEROBOUNCE_API_KEY")) {
-    throw new Error("ZEROBOUNCE_API_KEY is required for email verification.");
-  }
-
-  return withRetry(
-    async () => {
-      const params = new URLSearchParams({
-        api_key: env.ZEROBOUNCE_API_KEY ?? "",
-        email,
-      });
-      const res = await fetch(`https://api.zerobounce.net/v2/validate?${params.toString()}`);
-      if (!res.ok) throw new Error(`ZeroBounce request failed with ${res.status}`);
-      return res.json() as Promise<{ status?: ZeroBounceStatus; sub_status?: string } & Record<string, unknown>>;
-    },
-    { provider: "zerobounce", endpoint: "/v2/validate", userId, campaignId, leadId },
-  );
+export interface EmailVerificationResult {
+  email: string;
+  status: string;
+  subStatus?: string | null;
+  didMock: boolean;
 }
 
-export function mapZeroBounceDecision(status?: ZeroBounceStatus, subStatus?: string) {
-  if (status === "valid") return { status: "valid" as const, send_decision: "send" as const, reason: "Mailbox validated." };
-  if (status === "catch-all") return { status: "catch_all" as const, send_decision: "review" as const, reason: "Catch-all mailbox needs review." };
-  if (status === "unknown") return { status: "unknown" as const, send_decision: "review" as const, reason: subStatus ?? "Verification returned unknown." };
-  if (status === "spamtrap" || status === "abuse" || status === "do_not_mail") {
-    return { status: "risky" as const, send_decision: "skip" as const, reason: subStatus ?? "Address is risky." };
+export async function verifyEmail(
+  email: string,
+  options: { userId?: string; leadId?: string | null } = {}
+): Promise<EmailVerificationResult> {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized || !normalized.includes("@")) {
+    return saveResult({ email: normalized, status: "invalid", didMock: true }, options);
   }
-  return { status: "invalid" as const, send_decision: "skip" as const, reason: subStatus ?? "Address is invalid." };
+
+  const apiKey = process.env.ZEROBOUNCE_API_KEY;
+  if (!apiKey) {
+    return saveResult({ email: normalized, status: "valid", didMock: true }, options);
+  }
+
+  const params = new URLSearchParams({ api_key: apiKey, email: normalized });
+  const res = await fetchWithRetry(
+    `https://api.zerobounce.net/v2/validate?${params}`,
+    {},
+    { provider: "zerobounce", endpoint: "validate", shouldRetry: isTransientError, timeoutMs: 20_000 }
+  );
+
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+    throw new Error(`ZeroBounce error: ${err.error ?? err.message ?? res.statusText}`);
+  }
+
+  const data = (await res.json()) as { address?: string; status?: string; sub_status?: string };
+  return saveResult({
+    email: data.address ?? normalized,
+    status: data.status ?? "unknown",
+    subStatus: data.sub_status ?? null,
+    didMock: false,
+  }, options);
+}
+
+async function saveResult(
+  result: EmailVerificationResult,
+  options: { userId?: string; leadId?: string | null }
+): Promise<EmailVerificationResult> {
+  if (!options.userId) return result;
+  const db = createServiceClient();
+  await db.from("email_verifications").insert({
+    user_id: options.userId,
+    lead_id: options.leadId ?? null,
+    status: result.status,
+    created_at: new Date().toISOString(),
+  });
+  if (options.leadId) {
+    await db
+      .from("leads")
+      .update({ stage: result.status === "valid" ? "verified" : "verification_failed", updated_at: new Date().toISOString() })
+      .eq("id", options.leadId)
+      .eq("user_id", options.userId);
+  }
+  return result;
 }

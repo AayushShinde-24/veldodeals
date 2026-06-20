@@ -38,7 +38,7 @@ function AuthLayout({ active, title, subtitle, error, children }: { active: "log
           {children}
           <div className="auth-security-note">
             <ShieldCheck size={16} />
-            <span>API keys stay server-side. No email sends without approval gates.</span>
+            <span>No email sends without approval gates.</span>
           </div>
         </section>
       </div>
