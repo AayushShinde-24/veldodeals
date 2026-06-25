@@ -20,9 +20,9 @@ describe("credit costs", () => {
 });
 
 describe("plans", () => {
-  it("has no free tier — entry plan is Solo", () => {
+  it("has no free tier — entry plan is Launch (Solo)", () => {
     expect((plans as Record<string, unknown>).free).toBeUndefined();
-    expect(plans.solo.priceMonthlyUsd).toBe(2499);
+    expect(plans.solo_launch.priceMonthlyUsd).toBe(199);
   });
 
   it("applies a 2.5% deal fee on every tier", () => {
@@ -32,39 +32,48 @@ describe("plans", () => {
   });
 
   it("prices the confirmed ladder", () => {
-    expect(plans.solo.priceMonthlyUsd).toBe(2499);
-    expect(plans.team.priceMonthlyUsd).toBe(4999);
-    expect(plans.scale.priceMonthlyUsd).toBe(9999);
-    expect(plans.enterprise.priceMonthlyUsd).toBe(8999);
-    expect(plans.enterprise_max.priceMonthlyUsd).toBe(25999);
-    expect(plans.custom.priceMonthlyUsd).toBeNull();
+    expect(plans.solo_launch.priceMonthlyUsd).toBe(199);
+    expect(plans.solo_momentum.priceMonthlyUsd).toBe(399);
+    expect(plans.solo_velocity.priceMonthlyUsd).toBe(699);
+    expect(plans.team_crew.priceMonthlyUsd).toBe(999);
+    expect(plans.team_engine.priceMonthlyUsd).toBe(2499);
+    expect(plans.team_powerhouse.priceMonthlyUsd).toBe(4999);
+    expect(plans.enterprise_scale.priceMonthlyUsd).toBe(9999);
+    expect(plans.enterprise_apex.priceMonthlyUsd).toBe(19999);
+    expect(plans.enterprise_custom.priceMonthlyUsd).toBeNull();
   });
 
-  it("shares credits across up to 10 seats on the team plans", () => {
-    expect(plans.solo.maxTeamSeats).toBe(10);
-    expect(plans.team.maxTeamSeats).toBe(10);
-    expect(plans.scale.maxTeamSeats).toBe(10);
+  it("pools credits across seats on team (10) and enterprise; solo is single-seat", () => {
+    expect(plans.solo_launch.maxTeamSeats).toBe(1);
+    expect(plans.team_engine.maxTeamSeats).toBe(10);
+    expect(plans.enterprise_scale.maxTeamSeats).toBe(200);
   });
 
-  it("PAYG / top-ups charge $0.10 per credit ($0.13 hyper)", () => {
-    expect(paygRates.creditUsd).toBe(0.1);
-    expect(paygRates.hyperPersonalizedCreditUsd).toBe(0.13);
+  it("sets team hyper-personalization add-ons (199 / 399 / 799)", () => {
+    expect(plans.team_crew.hyperPersonalizationUsd).toBe(199);
+    expect(plans.team_engine.hyperPersonalizationUsd).toBe(399);
+    expect(plans.team_powerhouse.hyperPersonalizationUsd).toBe(799);
   });
 
-  it("getRevenuePlan falls back to solo for unknown/empty keys", () => {
-    expect(getRevenuePlan(undefined).key).toBe("solo");
-    expect(getRevenuePlan("nonsense").key).toBe("solo");
-    expect(getRevenuePlan("scale").key).toBe("scale");
+  it("PAYG (Custom Enterprise API) charges $0.12 per credit ($0.15 hyper)", () => {
+    expect(paygRates.creditUsd).toBe(0.12);
+    expect(paygRates.hyperPersonalizedCreditUsd).toBe(0.15);
+  });
+
+  it("getRevenuePlan falls back to the entry plan for unknown/empty keys", () => {
+    expect(getRevenuePlan(undefined).key).toBe("solo_launch");
+    expect(getRevenuePlan("nonsense").key).toBe("solo_launch");
+    expect(getRevenuePlan("team_engine").key).toBe("team_engine");
   });
 });
 
 describe("plan limits", () => {
-  it("blocks a solo user at their campaign cap", () => {
-    expect(isWithinPlan("solo", { campaigns: 0, mailboxes: 1 })).toBe(true);
-    expect(isWithinPlan("solo", { campaigns: 5, mailboxes: 1 })).toBe(false);
+  it("blocks a Launch user at their campaign cap", () => {
+    expect(isWithinPlan("solo_launch", { campaigns: 0, mailboxes: 1 })).toBe(true);
+    expect(isWithinPlan("solo_launch", { campaigns: 3, mailboxes: 1 })).toBe(false);
   });
 
   it("treats -1 caps as unlimited", () => {
-    expect(isWithinPlan("scale", { campaigns: 9999, mailboxes: 3 })).toBe(true);
+    expect(isWithinPlan("enterprise_scale", { campaigns: 9999, mailboxes: 3 })).toBe(true);
   });
 });

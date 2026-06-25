@@ -20,7 +20,7 @@ export async function getWorkspaceContext(userId?: string): Promise<WorkspaceCon
       userId: DEMO_USER_ID,
       workspaceId: "demo-workspace",
       workspaceName: "Acme Growth Co",
-      plan: "team",
+      plan: "team_engine",
       credits: 18420,
       membersCount: 3,
       workspace: { id: "demo-workspace", name: "Acme Growth Co", website: "https://acme.demo", industry: "B2B SaaS", company_size: "11-50" },

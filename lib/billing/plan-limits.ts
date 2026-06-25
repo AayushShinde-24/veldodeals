@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/integrations/supabase";
-import { getRevenuePlan, isWithinPlan, type PlanKey } from "@/lib/revenue-os/pricing";
+import { DEFAULT_PLAN_KEY, getRevenuePlan, isWithinPlan, plans, type PlanKey } from "@/lib/revenue-os/pricing";
 
 export type PlanLimitedResource = "campaigns" | "mailboxes" | "seats";
 
@@ -47,10 +47,7 @@ export async function assertWithinPlan(userId: string, resource: PlanLimitedReso
 }
 
 function normalizePlan(plan?: string | null): PlanKey {
-  const key = plan ?? "solo";
-  return (["solo", "team", "scale", "enterprise", "enterprise_plus", "enterprise_max", "custom"] as const).includes(key as PlanKey)
-    ? (key as PlanKey)
-    : "solo";
+  return plan && plan in plans ? (plan as PlanKey) : (DEFAULT_PLAN_KEY as PlanKey);
 }
 
 async function getUsage(userId: string, workspaceId: string | null): Promise<{

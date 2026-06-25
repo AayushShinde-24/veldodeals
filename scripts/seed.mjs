@@ -43,7 +43,7 @@ async function main() {
   // Workspace + profile
   const { data: workspace } = await db
     .from("workspaces")
-    .insert({ owner_id: USER_ID, name: "Acme Growth Co", website: "https://acme.example", industry: "B2B SaaS", company_size: "11-50", plan: "scale", credits: 5500 })
+    .insert({ owner_id: USER_ID, name: "Acme Growth Co", website: "https://acme.example", industry: "B2B SaaS", company_size: "11-50", plan: "enterprise_scale", credits: 5500 })
     .select("id")
     .single();
 
@@ -54,7 +54,7 @@ async function main() {
     company_name: "Acme Growth Co",
     workspace_id: workspace?.id ?? null,
     workspace_name: "Acme Growth Co",
-    plan: "scale",
+    plan: "enterprise_scale",
     credits: 5500,
     credits_balance: 5500,
     updated_at: now(),

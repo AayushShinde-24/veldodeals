@@ -26,118 +26,155 @@ export interface RevenuePlan {
   dealFeePct: number;
 }
 
-// Pricing model (first-year spec). No free tier — the entry plan is "Solo".
-// All tiers carry the 2.5% deal-close commission. Top-ups + Custom API bill at $0.10/credit.
-// NOTE: enterprise credit allowances are taken verbatim from the spec and are
-// non-monotonic vs price (e.g. Enterprise $8,999/1M vs Enterprise Plus $16,999/200k).
-// Adjust the monthlyCredits values here if the intended numbers differ.
+// ─────────────────────────────────────────────────────────────────────────
+// Pricing model. Three tiers — Solo, Team, Enterprise — each with three plans.
+// Solo plans bill a private balance (1 seat). Team plans pool credits across
+// 1–10 seats. Enterprise plans pool org-wide; Custom Enterprise is pay-as-you-go.
+// All tiers carry the 2.5% deal-close commission. This is the single source of
+// truth shared by the storefront (/pricing), the dashboard, billing, and Stripe.
+// ─────────────────────────────────────────────────────────────────────────
 export const plans = {
-  solo: {
-    key: "solo",
-    name: "Solo",
-    description: "For solo operators getting serious about outbound. 1–10 shared seats.",
+  // ── Solo (your own private credit balance) ──
+  solo_launch: {
+    key: "solo_launch",
+    name: "Launch",
+    description: "For founders getting their first pipeline moving. Your own private credit balance.",
     audience: "solo",
-    priceMonthlyUsd: 2499,
-    monthlyCredits: 25000,
+    priceMonthlyUsd: 199,
+    monthlyCredits: 2000,
     hyperPersonalizationUsd: null,
     addOnUsd: null,
-    memberLimit: 10,
-    expectedUserSharePct: 30,
-    maxCampaigns: 5,
-    maxMailboxes: 3,
-    maxTeamSeats: 10,
+    memberLimit: 1,
+    expectedUserSharePct: 18,
+    maxCampaigns: 3,
+    maxMailboxes: 1,
+    maxTeamSeats: 1,
     dealFeePct: 2.5,
   },
-  team: {
-    key: "team",
-    name: "Team",
-    description: "For small teams replacing 1–2 SDRs. Credits pooled across 1–10 seats.",
-    audience: "team",
-    priceMonthlyUsd: 4999,
-    monthlyCredits: 60000,
+  solo_momentum: {
+    key: "solo_momentum",
+    name: "Momentum",
+    description: "Double the volume and find your rhythm as a solo operator.",
+    audience: "solo",
+    priceMonthlyUsd: 399,
+    monthlyCredits: 4000,
     hyperPersonalizationUsd: null,
     addOnUsd: null,
+    memberLimit: 1,
+    expectedUserSharePct: 14,
+    maxCampaigns: 6,
+    maxMailboxes: 2,
+    maxTeamSeats: 1,
+    dealFeePct: 2.5,
+  },
+  solo_velocity: {
+    key: "solo_velocity",
+    name: "Velocity",
+    description: "Go all-out as a one-person revenue team.",
+    audience: "solo",
+    priceMonthlyUsd: 699,
+    monthlyCredits: 8000,
+    hyperPersonalizationUsd: null,
+    addOnUsd: null,
+    memberLimit: 1,
+    expectedUserSharePct: 10,
+    maxCampaigns: 12,
+    maxMailboxes: 3,
+    maxTeamSeats: 1,
+    dealFeePct: 2.5,
+  },
+  // ── Team (credits pooled across 1–10 seats) ──
+  team_crew: {
+    key: "team_crew",
+    name: "Crew",
+    description: "Your first shared revenue engine. Credits pooled across 1–10 seats.",
+    audience: "team",
+    priceMonthlyUsd: 999,
+    monthlyCredits: 10000,
+    hyperPersonalizationUsd: 199,
+    addOnUsd: null,
     memberLimit: 10,
-    expectedUserSharePct: 22,
+    expectedUserSharePct: 12,
     maxCampaigns: -1,
     maxMailboxes: 6,
     maxTeamSeats: 10,
     dealFeePct: 2.5,
   },
-  scale: {
-    key: "scale",
-    name: "Scale",
-    description: "Full revenue-team outbound at volume. 1–10 shared seats.",
+  team_engine: {
+    key: "team_engine",
+    name: "Engine",
+    description: "Replace 1–2 SDRs. Credits pooled across 1–10 seats.",
     audience: "team",
-    priceMonthlyUsd: 9999,
-    monthlyCredits: 150000,
-    hyperPersonalizationUsd: null,
+    priceMonthlyUsd: 2499,
+    monthlyCredits: 25000,
+    hyperPersonalizationUsd: 399,
     addOnUsd: null,
     memberLimit: 10,
-    expectedUserSharePct: 16,
+    expectedUserSharePct: 8,
+    maxCampaigns: -1,
+    maxMailboxes: 10,
+    maxTeamSeats: 10,
+    dealFeePct: 2.5,
+  },
+  team_powerhouse: {
+    key: "team_powerhouse",
+    name: "Powerhouse",
+    description: "A full revenue team on autopilot. Credits pooled across 1–10 seats.",
+    audience: "team",
+    priceMonthlyUsd: 4999,
+    monthlyCredits: 55000,
+    hyperPersonalizationUsd: 799,
+    addOnUsd: null,
+    memberLimit: 10,
+    expectedUserSharePct: 6,
     maxCampaigns: -1,
     maxMailboxes: 15,
     maxTeamSeats: 10,
     dealFeePct: 2.5,
   },
-  enterprise: {
-    key: "enterprise",
-    name: "Enterprise",
-    description: "Done-for-you outbound for orgs.",
+  // ── Enterprise (org-scale pools; Custom is pay-as-you-go) ──
+  enterprise_scale: {
+    key: "enterprise_scale",
+    name: "Scale",
+    description: "Done-for-you outbound at org scale. Shared across 1–200 seats.",
     audience: "enterprise",
-    priceMonthlyUsd: 8999,
-    monthlyCredits: 1000000,
-    hyperPersonalizationUsd: 1999, // hyper-personalization add-on
-    addOnUsd: 1999,
-    memberLimit: -1,
-    expectedUserSharePct: 8,
-    maxCampaigns: -1,
-    maxMailboxes: -1,
-    maxTeamSeats: -1,
-    dealFeePct: 2.5,
-  },
-  enterprise_plus: {
-    key: "enterprise_plus",
-    name: "Enterprise Plus",
-    description: "Higher-touch enterprise outbound.",
-    audience: "enterprise",
-    priceMonthlyUsd: 16999,
-    monthlyCredits: 200000,
-    hyperPersonalizationUsd: 3499,
-    addOnUsd: 3499,
-    memberLimit: -1,
+    priceMonthlyUsd: 9999,
+    monthlyCredits: 105000,
+    hyperPersonalizationUsd: null,
+    addOnUsd: null,
+    memberLimit: 200,
     expectedUserSharePct: 4,
     maxCampaigns: -1,
     maxMailboxes: -1,
-    maxTeamSeats: -1,
+    maxTeamSeats: 200,
     dealFeePct: 2.5,
   },
-  enterprise_max: {
-    key: "enterprise_max",
-    name: "Enterprise Max",
-    description: "Highest-volume, multi-region outbound.",
+  enterprise_apex: {
+    key: "enterprise_apex",
+    name: "Apex",
+    description: "Maximum reach, multi-region, shared across your whole org.",
     audience: "enterprise",
-    priceMonthlyUsd: 25999,
-    monthlyCredits: 300000,
-    hyperPersonalizationUsd: 599,
-    addOnUsd: 599,
-    memberLimit: -1,
-    expectedUserSharePct: 2,
+    priceMonthlyUsd: 19999,
+    monthlyCredits: 220000,
+    hyperPersonalizationUsd: null,
+    addOnUsd: null,
+    memberLimit: 200,
+    expectedUserSharePct: 3,
     maxCampaigns: -1,
     maxMailboxes: -1,
-    maxTeamSeats: -1,
+    maxTeamSeats: 200,
     dealFeePct: 2.5,
   },
-  custom: {
-    key: "custom",
+  enterprise_custom: {
+    key: "enterprise_custom",
     name: "Custom Enterprise",
-    description: "Pay-as-you-go API: $49/seat (custom API) + $0.10/credit ($0.13 hyper-personalized).",
+    description: "Unlimited scale, pay-as-you-go API: $20/seat + $0.12/credit ($0.15 hyper-personalized).",
     audience: "enterprise",
     priceMonthlyUsd: null,
     monthlyCredits: null,
     hyperPersonalizationUsd: null,
     addOnUsd: null,
-    memberLimit: null,
+    memberLimit: -1,
     expectedUserSharePct: 2,
     maxCampaigns: -1,
     maxMailboxes: -1,
@@ -147,28 +184,28 @@ export const plans = {
 } as const satisfies Record<string, RevenuePlan>;
 
 /** Custom-API per-seat fee (enhanced security; data not used to train models). */
-export const CUSTOM_API_SEAT_USD = 49;
+export const CUSTOM_API_SEAT_USD = 20;
 /** Custom-API extra security + delivery, per seat. */
 export const CUSTOM_API_SECURITY_SEAT_USD = 14;
 
-/** Add-on credits: sold in 1,000-credit increments, $1,000/yr → $100,000/yr (paid plans only). */
+/** Add-on credits: sold in 1,000-credit increments, $1,000/yr → $200,000/yr (paid plans only). */
 export const addOnCredits = {
   incrementCredits: 1000,
   minAnnualUsd: 1000,
-  maxAnnualUsd: 100000,
-  regularCreditsPerUsd: 10, // ~10 regular credits per $1
-  hyperCreditsPerUsd: 7.5, // ~7.5 hyper-personalized credits per $1
+  maxAnnualUsd: 200000,
+  regularCreditsPerUsd: 10, // 10¢ per regular credit
+  hyperCreditsPerUsd: 8, // 12.5¢ per hyper-personalized credit
 };
 
-/** Credit top-up price for any paid plan or the public API. */
+/** Add-on credit top-up price (regular credit). */
 export const TOPUP_CREDIT_USD = 0.1;
 
 export type PlanKey = keyof typeof plans;
 
-/** Pay-as-you-go rates for Custom Enterprise (regular $0.10, hyper-personalized $0.13). */
+/** Pay-as-you-go rates for Custom Enterprise (regular $0.12, hyper-personalized $0.15). */
 export const paygRates = {
-  creditUsd: 0.1,
-  hyperPersonalizedCreditUsd: 0.13,
+  creditUsd: 0.12,
+  hyperPersonalizedCreditUsd: 0.15,
   dealFeePct: 2.5,
 };
 
@@ -228,11 +265,11 @@ export function isWithinPlan(plan: PlanKey, usage: { campaigns: number; mailboxe
 export const revenuePlans: RevenuePlan[] = Object.values(plans);
 
 /** The entry plan used as a fallback when a plan key is unknown/missing (no free tier). */
-export const DEFAULT_PLAN_KEY = "solo";
+export const DEFAULT_PLAN_KEY = "solo_launch";
 
 export function getRevenuePlan(planKey?: string | null): RevenuePlan {
-  if (!planKey) return plans.solo;
-  return (plans as Record<string, RevenuePlan>)[planKey] ?? plans.solo;
+  if (!planKey) return plans.solo_launch;
+  return (plans as Record<string, RevenuePlan>)[planKey] ?? plans.solo_launch;
 }
 
 /** Pay-as-you-go (no fixed monthly credits — bills per credit used). */

@@ -38,7 +38,7 @@ export function demoProfile() {
     company_name: "Acme Growth Co",
     workspace_name: "Acme Growth Co",
     workspace_id: "demo-workspace",
-    plan: "team",
+    plan: "team_engine",
     credits: 18420,
     avatar_url: null,
   };
@@ -97,7 +97,7 @@ export function demoOperationalData(): OperationalData {
       { id: "lg-2", agent_name: "email_writer", log_level: "info", message: "Drafted 3 personalized emails.", created_at: iso(0) },
       { id: "lg-3", agent_name: "send_gate", log_level: "warn", message: "1 draft held: email score 71 < 75.", created_at: iso(0) },
     ],
-    profile: { id: DEMO_USER_ID, plan: "team", credits_balance: 18420, workspace_name: "Acme Growth Co", workspace_role: "owner", email: "founder@acme.demo" },
+    profile: { id: DEMO_USER_ID, plan: "team_engine", credits_balance: 18420, workspace_name: "Acme Growth Co", workspace_role: "owner", email: "founder@acme.demo" },
     usage: Array.from({ length: 42 }, (_, i) => ({ id: `u-${i}` })),
     ledger: [
       { id: "le-1", credit_change: -3, reason: "email_write", new_balance: 18420, created_at: iso(0) },
