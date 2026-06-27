@@ -1,15 +1,20 @@
 import { ArrowRight, CheckCircle2, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
+import { GoogleAuthButton } from "@/components/google-auth-button";
+import { isDemoMode } from "@/lib/demo/mode";
 import { signInAction } from "@/app/auth-actions";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const { error } = await searchParams;
+  const demo = isDemoMode();
   return (
     <AuthLayout active="login" title="Welcome back" subtitle="Sign in to continue to your Veldo workspace." error={error}>
+      <GoogleAuthButton demo={demo} next="/dashboard" />
+      <div className="auth-divider"><span>or</span></div>
       <form className="form" action={signInAction}>
         <AuthInput icon={<Mail size={18} />} id="email" name="email" label="Work email" placeholder="name@company.com" type="email" />
         <AuthInput icon={<LockKeyhole size={18} />} id="password" name="password" label="Password" placeholder="Enter your password" type="password" />
-        <button className="btn primary" type="submit">Sign in <ArrowRight size={16} /></button>
+        <button className="btn primary" type="submit">Continue with email <ArrowRight size={16} /></button>
       </form>
     </AuthLayout>
   );
@@ -38,7 +43,7 @@ function AuthLayout({ active, title, subtitle, error, children }: { active: "log
           {children}
           <div className="auth-security-note">
             <ShieldCheck size={16} />
-            <span>No email sends without approval gates.</span>
+            <span>Your data is encrypted. We never sell it.</span>
           </div>
         </section>
       </div>
