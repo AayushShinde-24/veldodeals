@@ -6,20 +6,16 @@ import { getOptionalEnv } from "@/lib/security/env";
 import { credit } from "@/lib/billing/ledger";
 import { getRevenuePlan } from "@/lib/revenue-os/pricing";
 
-interface StripeEvent {
-  id?: string;
+// Dodo Payments webhooks (Standard Webhooks / svix-style signing).
+interface DodoEvent {
   type?: string;
-  data?: { object?: StripeObject };
+  data?: DodoObject;
 }
-
-interface StripeObject {
-  id?: string;
-  customer?: string;
-  subscription?: string;
-  payment_status?: string;
+interface DodoObject {
+  subscription_id?: string;
+  payment_id?: string;
   status?: string;
-  amount_total?: number;
-  amount_paid?: number;
+  total_amount?: number;
   currency?: string;
   metadata?: Record<string, string | undefined>;
 }
@@ -33,35 +29,42 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const webhookSecret = getOptionalEnv()?.STRIPE_WEBHOOK_SECRET;
+    const webhookSecret = getOptionalEnv()?.DODO_WEBHOOK_SECRET;
+    const webhookId = request.headers.get("webhook-id") ?? "";
+    const webhookTimestamp = request.headers.get("webhook-timestamp") ?? "";
+    const webhookSignature = request.headers.get("webhook-signature") ?? "";
+
     if (webhookSecret) {
-      const sigHeader = request.headers.get("stripe-signature");
-      if (!sigHeader) return fail("Missing stripe-signature header.", 400);
-      if (!verifyStripeSignature(rawBody, sigHeader, webhookSecret)) {
+      if (!webhookId || !webhookTimestamp || !webhookSignature) {
+        return fail("Missing webhook signature headers.", 400);
+      }
+      if (!verifyDodoSignature(rawBody, webhookId, webhookTimestamp, webhookSignature, webhookSecret)) {
         return fail("Webhook signature verification failed.", 400);
       }
     }
 
-    const event = JSON.parse(rawBody) as StripeEvent;
-    if (!event.id || !event.type) return fail("Invalid Stripe event payload.", 400);
+    const event = JSON.parse(rawBody) as DodoEvent;
+    if (!event.type) return fail("Invalid Dodo event payload.", 400);
 
-    const obj = event.data?.object ?? {};
+    const obj = event.data ?? {};
     const metadata = obj.metadata ?? {};
     const userId = metadata.user_id;
     const plan = metadata.plan;
+    // Idempotency key: the svix webhook-id (falls back to subscription/payment id).
+    const eventId = webhookId || obj.payment_id || obj.subscription_id || `${event.type}:${Date.now()}`;
     const db = createServiceClient();
 
     const { data: existing } = await db
       .from("stripe_events")
       .select("event_id,status")
-      .eq("event_id", event.id)
+      .eq("event_id", eventId)
       .maybeSingle();
     if (existing?.status === "processed") {
       return ok({ received: true, duplicate: true });
     }
 
     const { error: insertError } = await db.from("stripe_events").insert({
-      event_id: event.id,
+      event_id: eventId,
       event_type: event.type,
       status: "processing",
       user_id: userId ?? null,
@@ -72,11 +75,11 @@ export async function POST(request: NextRequest) {
       return fail(insertError.message, 500);
     }
 
-    const result = await handleStripeEvent(event, obj);
+    const result = await handleDodoEvent(event, obj, eventId);
     await db
       .from("stripe_events")
       .update({ status: "processed", processed_at: new Date().toISOString(), error_message: null })
-      .eq("event_id", event.id);
+      .eq("event_id", eventId);
 
     return ok({ received: true, ...result });
   } catch (error) {
@@ -84,25 +87,26 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function handleStripeEvent(
-  event: StripeEvent,
-  obj: StripeObject
+async function handleDodoEvent(
+  event: DodoEvent,
+  obj: DodoObject,
+  eventId: string
 ): Promise<Record<string, unknown>> {
   const metadata = obj.metadata ?? {};
   const userId = metadata.user_id;
   const plan = metadata.plan;
   const kind = metadata.kind;
 
-  if (event.type === "checkout.session.completed") {
+  if (event.type === "payment.succeeded") {
     if (!userId) return { skipped: true, reason: "no_user_id_in_metadata" };
     if (kind === "addon") {
       const credits = Number(metadata.credits ?? 0);
       if (!Number.isFinite(credits) || credits <= 0) {
         return { skipped: true, reason: "no_addon_credits_in_metadata" };
       }
-      const ledger = await credit(userId, credits, "stripe_addon_purchase", {
-        idempotencyKey: `stripe:${event.id}:addon`,
-        metadata: { stripeSessionId: obj.id, plan, amountTotal: obj.amount_total, currency: obj.currency },
+      const ledger = await credit(userId, credits, "dodo_addon_purchase", {
+        idempotencyKey: `dodo:${eventId}:addon`,
+        metadata: { paymentId: obj.payment_id, plan, amount: obj.total_amount, currency: obj.currency },
       });
       if (!ledger.success) throw new Error(ledger.error ?? "Could not credit add-on purchase.");
       return { credited: credits, balance: ledger.balance };
@@ -111,18 +115,17 @@ async function handleStripeEvent(
     return { plan_updated: plan ?? null };
   }
 
-  if (event.type === "invoice.paid") {
+  if (
+    event.type === "subscription.active" ||
+    event.type === "subscription.renewed" ||
+    event.type === "subscription.updated"
+  ) {
     if (userId && plan) await updatePlan(userId, plan);
-    return { invoice_paid: true, user_id: userId ?? null };
+    return { subscription: event.type, plan: plan ?? null };
   }
 
-  if (event.type === "invoice.payment_failed") {
-    return { dunning: true, user_id: userId ?? null };
-  }
-
-  if (event.type === "customer.subscription.updated") {
-    if (userId && plan) await updatePlan(userId, plan);
-    return { subscription_updated: true, plan: plan ?? null };
+  if (event.type === "subscription.on_hold" || event.type === "subscription.failed" || event.type === "payment.failed") {
+    return { dunning: true, type: event.type, user_id: userId ?? null };
   }
 
   return { ignored: true, type: event.type };
@@ -137,25 +140,29 @@ async function updatePlan(userId: string, planKey: string): Promise<void> {
   ]);
 }
 
-function verifyStripeSignature(rawBody: string, sigHeader: string, secret: string): boolean {
+/** Standard Webhooks (svix) verification used by Dodo Payments. */
+function verifyDodoSignature(
+  rawBody: string,
+  webhookId: string,
+  webhookTimestamp: string,
+  signatureHeader: string,
+  secret: string
+): boolean {
   try {
-    const parts = Object.fromEntries(
-      sigHeader.split(",").map((part) => {
-        const idx = part.indexOf("=");
-        return [part.slice(0, idx), part.slice(idx + 1)];
-      }),
-    );
-    const timestamp = parts["t"];
-    const signature = parts["v1"];
-    if (!timestamp || !signature) return false;
+    const ageSeconds = Math.abs(Math.floor(Date.now() / 1000) - parseInt(webhookTimestamp, 10));
+    if (!Number.isFinite(ageSeconds) || ageSeconds > 300) return false;
 
-    const eventAge = Math.floor(Date.now() / 1000) - parseInt(timestamp, 10);
-    if (eventAge > 300) return false;
+    const key = Buffer.from(secret.replace(/^whsec_/, ""), "base64");
+    const signedContent = `${webhookId}.${webhookTimestamp}.${rawBody}`;
+    const expected = createHmac("sha256", key).update(signedContent, "utf8").digest("base64");
+    const expectedBuf = Buffer.from(expected);
 
-    const expected = createHmac("sha256", secret).update(`${timestamp}.${rawBody}`, "utf8").digest("hex");
-    const expectedBuf = Buffer.from(expected, "hex");
-    const actualBuf = Buffer.from(signature, "hex");
-    return expectedBuf.length === actualBuf.length && timingSafeEqual(expectedBuf, actualBuf);
+    // Header is a space-separated list of `version,signature` pairs (e.g. "v1,<sig>").
+    return signatureHeader.split(" ").some((part) => {
+      const sig = part.includes(",") ? part.slice(part.indexOf(",") + 1) : part;
+      const actualBuf = Buffer.from(sig);
+      return expectedBuf.length === actualBuf.length && timingSafeEqual(expectedBuf, actualBuf);
+    });
   } catch {
     return false;
   }

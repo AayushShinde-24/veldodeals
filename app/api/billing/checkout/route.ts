@@ -5,7 +5,8 @@ import { getCurrentUser } from "@/lib/auth/server";
 import { createCheckoutSession } from "@/lib/integrations/billing-provider";
 
 const schema = z.object({
-  plan: z.enum(["solo", "team", "scale", "enterprise", "enterprise_plus", "enterprise_max", "custom"]),
+  // Any current plan key; the provider validates against the live plan table.
+  plan: z.string().min(1),
   mode: z.enum(["subscription", "addon"]).default("subscription"),
   hyperPersonalization: z.boolean().optional(),
 });

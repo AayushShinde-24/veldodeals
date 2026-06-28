@@ -550,9 +550,9 @@ export function getIntegrationStatus(): IntegrationStatus[] {
       connectUrl: "/settings/integrations",
     },
     {
-      label: "Stripe",
-      key: "stripe",
-      configured: !!process.env.STRIPE_SECRET_KEY,
+      label: "Dodo Payments",
+      key: "dodo",
+      configured: !!process.env.DODO_PAYMENTS_API_KEY,
       description: "Manage subscription billing, credit top-ups, and plan upgrades.",
       connectUrl: "/settings/integrations",
     },

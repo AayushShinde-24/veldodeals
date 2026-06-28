@@ -31,7 +31,7 @@ export function getLaunchReadiness(): ReadinessArea[] {
     { area: "Lead sourcing", status: has("APOLLO_API_KEY") ? "ready" : "mocked", owner: "Sales", detail: "Apollo contact data." },
     { area: "Email verification", status: has("ZEROBOUNCE_API_KEY") ? "ready" : "mocked", owner: "Deliverability", detail: "Pre-send verification." },
     { area: "Company research", status: has("TAVILY_API_KEY") ? "ready" : "mocked", owner: "AI", detail: "Real-time web research." },
-    { area: "Billing", status: has("STRIPE_SECRET_KEY") ? "ready" : "blocked", owner: "Revenue", detail: "Stripe checkout + webhooks." },
+    { area: "Billing", status: has("DODO_PAYMENTS_API_KEY") ? "ready" : "blocked", owner: "Revenue", detail: "Dodo checkout + webhooks." },
     { area: "AI voice calls", status: has("VOICE_PROVIDER_API_KEY") ? "ready" : "mocked", owner: "Sales", detail: "Voice provider not yet integrated." },
     { area: "DNC checks", status: "mocked", owner: "Compliance", detail: "Do-not-call list verification." },
     { area: "Investor sourcing", status: has("INVESTOR_DB_API_KEY") ? "ready" : "mocked", owner: "Fundraising", detail: "Investor database integration." },

@@ -183,7 +183,7 @@ export function demoIntegrationStatus(): IntegrationStatus[] {
   return [
     { label: "Gmail", key: "gmail", configured: true, description: "Send + track via Gmail.", connectUrl: "/api/google/connect" },
     { label: "Apollo.io", key: "apollo", configured: true, description: "Verified B2B contact data.", connectUrl: "/settings/integrations" },
-    { label: "Stripe", key: "stripe", configured: true, description: "Subscriptions + credit top-ups.", connectUrl: "/settings/integrations" },
+    { label: "Dodo Payments", key: "dodo", configured: true, description: "Subscriptions + credit top-ups.", connectUrl: "/settings/integrations" },
     { label: "Anthropic", key: "anthropic", configured: true, description: "Powers every agent.", connectUrl: "/settings/integrations" },
     { label: "Tavily", key: "tavily", configured: true, description: "Real-time account research.", connectUrl: "/settings/integrations" },
     { label: "ZeroBounce", key: "zerobounce", configured: false, description: "Email verification.", connectUrl: "/settings/integrations" },

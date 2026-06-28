@@ -79,9 +79,9 @@ export async function getOutstandingDealFees(userId: string): Promise<{ total: n
 }
 
 /**
- * Aggregate a user's pending deal fees and mark them invoiced. Creates a Stripe invoice
- * item when Stripe is configured (best-effort); otherwise just transitions status so the
- * amount is owed and surfaced. Idempotent-ish: only acts on currently-pending rows.
+ * Aggregate a user's pending deal fees and mark them invoiced. The 2.5% success fee is
+ * recorded and surfaced as owed; collection is handled out-of-band (Dodo invoice /
+ * next subscription cycle). Idempotent-ish: only acts on currently-pending rows.
  */
 export async function invoiceDealFees(userId: string): Promise<{ invoiced: number; amount: number }> {
   const db = createServiceClient();
@@ -95,31 +95,6 @@ export async function invoiceDealFees(userId: string): Promise<{ invoiced: numbe
   if (rows.length === 0) return { invoiced: 0, amount: 0 };
 
   const amount = Math.round(rows.reduce((s, r) => s + Number(r.fee_amount ?? 0), 0) * 100) / 100;
-  const currency = (rows[0]?.currency as string) ?? "usd";
-
-  // Best-effort Stripe invoice item (skipped without a key or customer mapping).
-  const secretKey = process.env.STRIPE_SECRET_KEY;
-  if (secretKey && amount > 0) {
-    const { data: profile } = await db.from("profiles").select("stripe_customer_id").eq("id", userId).maybeSingle();
-    const customer = (profile as { stripe_customer_id?: string } | null)?.stripe_customer_id;
-    if (customer) {
-      const { fetchWithRetry, isTransientError } = await import("@/lib/integrations/retry");
-      await fetchWithRetry(
-        "https://api.stripe.com/v1/invoiceitems",
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${secretKey}`, "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({
-            customer,
-            amount: String(Math.round(amount * 100)),
-            currency,
-            description: `Veldo deal success fee (${rows.length} deal${rows.length === 1 ? "" : "s"})`,
-          }).toString(),
-        },
-        { provider: "stripe", endpoint: "invoiceitems", shouldRetry: isTransientError, timeoutMs: 15_000 }
-      ).catch(() => {});
-    }
-  }
 
   await db.from("deal_fees").update({ status: "invoiced" }).in("id", rows.map((r) => r.id));
   return { invoiced: rows.length, amount };

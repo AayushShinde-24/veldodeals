@@ -1,6 +1,12 @@
 import { fetchWithRetry, isTransientError } from "@/lib/integrations/retry";
 import { getRevenuePlan, paygRates, plans, type PlanKey } from "@/lib/revenue-os/pricing";
 
+// ─────────────────────────────────────────────────────────────────────────
+// Payments provider: Dodo Payments (merchant-of-record). Replaces Stripe.
+// Creates a hosted Checkout Session (POST /checkouts) and returns checkout_url.
+// Fetch-based (no SDK) to match the rest of the integrations layer.
+// ─────────────────────────────────────────────────────────────────────────
+
 interface CheckoutOptions {
   userId: string;
   email?: string;
@@ -12,66 +18,11 @@ interface CheckoutOptions {
   [key: string]: unknown;
 }
 
-export async function createCheckoutSession(options: CheckoutOptions) {
-  const secretKey = process.env.STRIPE_SECRET_KEY;
-  if (!secretKey) {
-    throw new Error(
-      "STRIPE_SECRET_KEY is not configured. Add it to your .env.local file to enable billing."
-    );
-  }
-
-  const planKey = normalizePlanKey(options.plan);
-  const plan = getRevenuePlan(planKey);
-  const checkoutMode = options.mode ?? "subscription";
-  const priceId = checkoutMode === "addon" ? addonPriceIdForPlan(planKey) : subscriptionPriceIdForPlan(planKey);
-
-  if (checkoutMode === "subscription" && plan.priceMonthlyUsd === null) {
-    throw new Error(`${plan.name} is not available through self-serve checkout.`);
-  }
-
-  if (!priceId) {
-    throw new Error(`Stripe price ID is not configured for ${checkoutMode} checkout on plan: ${planKey}`);
-  }
-
-  const purchasedCredits = checkoutMode === "addon" && plan.addOnUsd
-    ? Math.round(plan.addOnUsd / paygRates.creditUsd)
-    : null;
-
-  const params: Record<string, string> = {
-    "payment_method_types[]": "card",
-    "line_items[0][price]": priceId,
-    "line_items[0][quantity]": "1",
-    mode: checkoutMode === "addon" ? "payment" : "subscription",
-    success_url: options.successUrl,
-    cancel_url: options.cancelUrl,
-    "metadata[user_id]": options.userId,
-    "metadata[plan]": planKey,
-    "metadata[kind]": checkoutMode,
-  };
-  if (purchasedCredits !== null) params["metadata[credits]"] = String(purchasedCredits);
-  if (options.email) params.customer_email = options.email;
-  const body = new URLSearchParams(params);
-
-  const res = await fetchWithRetry(
-    "https://api.stripe.com/v1/checkout/sessions",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${secretKey}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: body.toString(),
-    },
-    { provider: "stripe", endpoint: "checkout.sessions", shouldRetry: isTransientError, timeoutMs: 15_000 }
-  );
-
-  if (!res.ok) {
-    const err = (await res.json()) as { error?: { message?: string } };
-    throw new Error(`Stripe error: ${err.error?.message ?? res.statusText}`);
-  }
-
-  const session = (await res.json()) as { id: string; url: string };
-  return { ...session, checkoutUrl: session.url, plan: planKey, mode: checkoutMode };
+function dodoBaseUrl(): string {
+  if (process.env.DODO_API_BASE) return process.env.DODO_API_BASE.replace(/\/$/, "");
+  return process.env.DODO_ENVIRONMENT === "live"
+    ? "https://live.dodopayments.com"
+    : "https://test.dodopayments.com";
 }
 
 function normalizePlanKey(plan: string): PlanKey {
@@ -79,12 +30,72 @@ function normalizePlanKey(plan: string): PlanKey {
   throw new Error(`Unknown plan: ${plan}`);
 }
 
-function subscriptionPriceIdForPlan(plan: PlanKey): string {
-  const envKey = `STRIPE_${plan.toUpperCase()}_PRICE_ID`;
-  return process.env[envKey] ?? "";
+/** Dodo product id for a plan, by checkout mode. Configure per plan in env. */
+function productIdForPlan(plan: PlanKey, mode: "subscription" | "addon"): string {
+  const prefix = mode === "addon" ? "DODO_ADDON_" : "DODO_PRODUCT_";
+  return process.env[`${prefix}${plan.toUpperCase()}_ID`] ?? "";
 }
 
-function addonPriceIdForPlan(plan: PlanKey): string {
-  const envKey = `STRIPE_ADDON_${plan.toUpperCase()}_PRICE_ID`;
-  return process.env[envKey] ?? "";
+export async function createCheckoutSession(options: CheckoutOptions) {
+  const apiKey = process.env.DODO_PAYMENTS_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "DODO_PAYMENTS_API_KEY is not configured. Add it to your .env.local file to enable billing."
+    );
+  }
+
+  const planKey = normalizePlanKey(options.plan);
+  const plan = getRevenuePlan(planKey);
+  const checkoutMode = options.mode ?? "subscription";
+  const productId = productIdForPlan(planKey, checkoutMode);
+
+  if (checkoutMode === "subscription" && plan.priceMonthlyUsd === null) {
+    throw new Error(`${plan.name} is not available through self-serve checkout.`);
+  }
+  if (!productId) {
+    throw new Error(`Dodo product ID is not configured for ${checkoutMode} checkout on plan: ${planKey}`);
+  }
+
+  const purchasedCredits =
+    checkoutMode === "addon" && plan.addOnUsd ? Math.round(plan.addOnUsd / paygRates.creditUsd) : null;
+
+  const body: Record<string, unknown> = {
+    product_cart: [{ product_id: productId, quantity: 1 }],
+    return_url: options.successUrl,
+    metadata: {
+      user_id: options.userId,
+      plan: planKey,
+      kind: checkoutMode,
+      ...(purchasedCredits !== null ? { credits: String(purchasedCredits) } : {}),
+      ...(options.hyperPersonalization ? { hyper_personalization: "true" } : {}),
+    },
+    ...(options.email ? { customer: { email: options.email } } : {}),
+  };
+
+  const res = await fetchWithRetry(
+    `${dodoBaseUrl()}/checkouts`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    },
+    { provider: "dodo", endpoint: "checkouts", shouldRetry: isTransientError, timeoutMs: 15_000 }
+  );
+
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
+    throw new Error(`Dodo error: ${err.message ?? err.error ?? res.statusText}`);
+  }
+
+  const session = (await res.json()) as { session_id?: string; checkout_url?: string };
+  return {
+    id: session.session_id ?? "",
+    checkoutUrl: session.checkout_url ?? "",
+    url: session.checkout_url ?? "",
+    plan: planKey,
+    mode: checkoutMode,
+  };
 }
