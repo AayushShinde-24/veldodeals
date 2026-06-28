@@ -1,20 +1,39 @@
 import { Building2, Mail, Target } from "lucide-react";
 import { Badge, GlassCard, PageHeader, PageShell, SectionHeader } from "@/components/premium";
+import { AutonomyModePicker } from "@/components/autonomy-mode-picker";
 import { getWorkspaceContext } from "@/src/lib/workspace/context";
 import { getGoogleSetupState } from "@/src/lib/apis/google/oauth";
-import { saveOnboardingAction } from "./actions";
+import { getAutonomyMode } from "@/lib/autonomy/modes";
+import { saveOnboardingAction, saveAutonomyModeAction } from "./actions";
 
 export default async function OnboardingPage() {
   const context = await getWorkspaceContext();
   const google = getGoogleSetupState();
+  const currentMode = getAutonomyMode(
+    (context?.workspace as { autonomy_mode?: string } | undefined)?.autonomy_mode
+  );
 
   return (
     <PageShell>
       <PageHeader
         eyebrow="Onboarding"
         title="Set up your AI sales workspace"
-        description="Veldo needs a workspace, ICP, and connected mailbox before agents can safely operate."
+        description="First, choose how much Vel runs on its own — then finish your workspace."
       />
+
+      <GlassCard glow style={{ marginBottom: 22 }}>
+        <SectionHeader
+          title="Choose how Vel works"
+          description="Set your autonomy level. You can change this anytime in Settings."
+        />
+        <AutonomyModePicker
+          action={saveAutonomyModeAction}
+          next="/dashboard"
+          initial={currentMode.id}
+          submitLabel="Set autonomy & continue"
+        />
+      </GlassCard>
+
       <section className="grid split-sidebar">
         <GlassCard>
           <SectionHeader title="Workspace profile" description="This context is saved securely and used by Campaign Leader." />

@@ -2,9 +2,12 @@ import { BarChart3, Building2, CreditCard, KeyRound, Mail, Plug, ShieldCheck, Us
 import { redirect } from "next/navigation";
 import { GlassCard, PageHeader, SectionHeader } from "@/components/premium";
 import { StatusPill } from "@/components/status-pill";
+import { AutonomyModePicker } from "@/components/autonomy-mode-picker";
 import { getCurrentUser } from "@/lib/auth/server";
 import { getIntegrationStatus, getOperationalData, resolveUserId, type UiSearchParams } from "@/lib/ui/data";
 import { getRevenuePlan } from "@/lib/revenue-os/pricing";
+import { getAutonomyMode } from "@/lib/autonomy/modes";
+import { saveAutonomyModeAction } from "@/app/onboarding/actions";
 
 export default async function SettingsPage({ searchParams }: { searchParams: UiSearchParams }) {
   const user = await getCurrentUser();
@@ -15,6 +18,9 @@ export default async function SettingsPage({ searchParams }: { searchParams: UiS
   const integrations = getIntegrationStatus();
   const gmail = data.connectedAccounts.find((a) => a.provider === "gmail");
   const compliance = data.compliance;
+  const autonomyMode = getAutonomyMode(
+    (data.workspace as { autonomy_mode?: string } | null)?.autonomy_mode
+  );
   const apiKeyCount = data.profile ? 0 : 0; // Loaded via API — show link instead
 
   const cards = [
@@ -93,6 +99,19 @@ export default async function SettingsPage({ searchParams }: { searchParams: UiS
         title="Workspace settings"
         description="Manage compliance, integrations, billing, API keys, and team access."
       />
+
+      <GlassCard glow style={{ marginBottom: 22 }}>
+        <SectionHeader
+          title="Autonomy"
+          description={`How much Vel runs on its own — currently ${autonomyMode.name}. Change it anytime.`}
+        />
+        <AutonomyModePicker
+          action={saveAutonomyModeAction}
+          next="/settings"
+          initial={autonomyMode.id}
+          submitLabel="Save autonomy level"
+        />
+      </GlassCard>
 
       <GlassCard>
         <SectionHeader title="Quick status" description="Click any card to configure that area." />
