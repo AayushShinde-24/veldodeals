@@ -15,6 +15,7 @@ import {
   Megaphone,
   Menu,
   PhoneCall,
+  Radio,
   Search,
   Settings,
   Sparkles,
@@ -37,6 +38,7 @@ const mainNav = [
   { href: "/calls", label: "Calls", icon: PhoneCall },
   { href: "/crm", label: "CRM deals", icon: Handshake },
   { href: "/fundraising", label: "Fundraising", icon: Megaphone },
+  { href: "/marketing", label: "Marketing", icon: Radio },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
 ];
 

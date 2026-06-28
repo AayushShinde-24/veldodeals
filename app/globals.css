@@ -5193,3 +5193,72 @@ body {
 .api-usage-cell { font-size: 12px; color: #c3b9e8; white-space: nowrap; }
 
 @media (max-width: 760px) { .api-usage-summary { grid-template-columns: repeat(2, 1fr); } }
+
+/* ── Marketing ad studio ── */
+.btn.small { min-height: 30px; padding: 0 12px; font-size: 12.5px; border-radius: 8px; }
+.spin { animation: spin 0.9s linear infinite; }
+
+.adgen { display: grid; gap: 18px; margin-top: 8px; }
+.adgen-form { display: grid; gap: 14px; }
+.adgen-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.adgen-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.adgen-chip {
+  padding: 7px 13px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: all 0.18s ease;
+}
+.adgen-chip:hover { color: var(--text); border-color: rgba(255, 255, 255, 0.22); }
+.adgen-chip.on {
+  color: #fff;
+  background: linear-gradient(120deg, rgba(139, 92, 246, 0.3), rgba(59, 130, 246, 0.22));
+  border-color: rgba(168, 140, 255, 0.6);
+}
+.adgen-go { width: fit-content; }
+
+.adgen-result { display: grid; gap: 14px; margin-top: 4px; }
+.adgen-concept {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(124, 58, 237, 0.1);
+  border: 1px solid rgba(168, 140, 255, 0.24);
+}
+.adgen-concept strong { font-size: 13px; }
+.adgen-concept p { color: var(--muted); font-size: 13px; margin: 4px 0 6px; }
+.adgen-provider { font-size: 11.5px; color: #c4b5fd; }
+
+.adgen-variants { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+.adgen-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: transform 0.2s ease, border-color 0.25s ease;
+}
+.adgen-card:hover { transform: translateY(-3px); border-color: rgba(168, 140, 255, 0.4); }
+.adgen-card-head { font-size: 11px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; color: #94a3b8; }
+.adgen-thumb {
+  display: grid;
+  place-items: center;
+  height: 96px;
+  border-radius: 10px;
+  color: #fff;
+  background: linear-gradient(135deg, #7c3aed, #3b82f6);
+}
+.adgen-thumb[data-format="video"] { background: linear-gradient(135deg, #a855f7, #ec4899); }
+.adgen-thumb[data-format="carousel"] { background: linear-gradient(135deg, #6366f1, #22d3ee); }
+.adgen-headline { font-size: 14px; font-weight: 800; }
+.adgen-text { font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+.adgen-cta-row { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+.adgen-cta { font-size: 12px; font-weight: 700; color: #c4b5fd; }
+.adgen-posted { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: var(--ok); }
+
+@media (max-width: 760px) { .adgen-row { grid-template-columns: 1fr; } }

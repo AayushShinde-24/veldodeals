@@ -226,6 +226,11 @@ export const creditCosts: Record<string, number> = {
   email_verify: 1,
   icp_score: 1,
   reply_classify: 1,
+  // ── Marketing (ad generation + publishing) ──
+  ad_copy: 2,
+  ad_image: 6,
+  ad_video: 30,
+  ad_publish: 3,
 };
 
 export function creditsRequired(operation: keyof typeof creditCosts | string): number {
