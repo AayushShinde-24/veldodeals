@@ -6,7 +6,6 @@ import {
   Bell,
   Bot,
   Building2,
-  CreditCard,
   Database,
   FileText,
   Handshake,
@@ -43,7 +42,6 @@ const mainNav = [
 
 const accountNav = [
   { href: "/settings", label: "Settings", icon: Settings },
-  { href: "/billing", label: "Billing", icon: CreditCard },
   { href: "/team", label: "Team", icon: Users },
   { href: "/workspace", label: "Workspace", icon: Building2 },
 ];
