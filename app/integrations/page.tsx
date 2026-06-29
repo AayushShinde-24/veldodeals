@@ -1,5 +1,6 @@
 import { Plug } from "lucide-react";
 import { Badge, DataTable, EmptyState, GlassCard, PageHeader, PageShell, SectionHeader } from "@/components/premium";
+import { SettingsTabs } from "@/components/settings-tabs";
 import { StatusPill } from "@/components/status-pill";
 import { getIntegrationStatus, getOperationalData, resolveUserId, type UiSearchParams } from "@/lib/ui/data";
 import { getGoogleSetupState } from "@/src/lib/apis/google/oauth";
@@ -14,11 +15,12 @@ export default async function IntegrationsPage({ searchParams }: { searchParams:
   return (
     <PageShell>
       <PageHeader
-        eyebrow="Integrations"
-        title="Connect the operating layer"
+        eyebrow="Settings"
+        title="Integrations"
         description="Each integration is server-routed, retry-aware, and safe from frontend secret exposure."
         actions={<a className="btn primary" href="/api/mailbox/connect">Connect mailbox</a>}
       />
+      <SettingsTabs />
       <section className="grid cols-4">
         {integrations.map((integration) => (
           <GlassCard key={integration.label}>

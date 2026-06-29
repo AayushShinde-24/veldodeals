@@ -88,6 +88,11 @@ function isInternalOnlyLine(line) {
     trimmed.includes("const google") ||
     trimmed.includes("provider") ||
     trimmed.includes("\"gmail\"") ||
-    trimmed.includes("\"resend\"")
+    trimmed.includes("\"resend\"") ||
+    // Allowed exception: "Continue with Google" SSO is an intentional, user-facing
+    // auth pattern (Google brand guidelines require showing the name). This does
+    // not relax the ban on backend providers anywhere else.
+    trimmed.includes("GoogleAuthButton") ||
+    trimmed.includes("with Google")
   );
 }

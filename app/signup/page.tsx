@@ -1,5 +1,6 @@
 import { ArrowRight, Building2, CheckCircle2, LockKeyhole, Mail, ShieldCheck, UserCircle } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
+import { AuthDivider, GoogleAuthButton } from "@/components/google-auth-button";
 import { signUpAction } from "@/app/auth-actions";
 
 export default async function SignupPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
@@ -23,6 +24,8 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
           <h1>Create your workspace</h1>
           <p>Start in approval-gated mode. Research, score, draft, verify, then approve before any send.</p>
           {error ? <div className="status failed" style={{ marginBottom: 14 }}>{error}</div> : null}
+          <GoogleAuthButton label="Sign up with Google" />
+          <AuthDivider />
           <form className="form" action={signUpAction}>
             <AuthInput icon={<UserCircle size={18} />} id="full_name" name="full_name" label="Full name" placeholder="Andrew Carter" />
             <AuthInput icon={<Building2 size={18} />} id="company_name" name="company_name" label="Company" placeholder="Acme Corp" />

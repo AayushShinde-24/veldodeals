@@ -13,7 +13,8 @@ export async function runEmailWriterAgent(input: Record<string, unknown>, contex
 
   const prompt = await loadAgentPrompt("email-writer.md");
   const output = await generateValidatedJson({
-    route: input.cheap_variant === true ? "openai_control" : "claude_premium",
+    // Emails that matter use the top-tier model (Opus 4.8); cheap variants use GPT 5.4.
+    route: input.cheap_variant === true ? "standard" : "premium",
     schema: emailWriterOutputSchema,
     systemPrompt: prompt,
     userPrompt: JSON.stringify({

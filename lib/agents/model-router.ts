@@ -6,7 +6,32 @@ import { z } from "zod";
 import { getEnv, hasSecret } from "@/lib/security/env";
 import { withRetry } from "@/lib/integrations/retry";
 
-export type ModelRoute = "openai_control" | "claude_premium";
+/**
+ * Model tiers, chosen by how much the task matters.
+ * - standard: routine work (sentiment, classification, cheap variants) -> GPT 5.4
+ * - advanced: high-efficiency reasoning (research, strategy, personalization) -> Sonnet 4.6
+ * - premium: top-tier, reserved for emails that matter a lot -> Opus 4.8
+ *
+ * The legacy names ("openai_control", "claude_premium") are kept as aliases so
+ * existing callers keep working while we migrate to the tier names.
+ */
+export type ModelRoute = "standard" | "advanced" | "premium" | "openai_control" | "claude_premium";
+
+type ProviderRoute = "openai" | "claude";
+
+function resolveTier(route: ModelRoute): { provider: ProviderRoute; tier: "standard" | "advanced" | "premium" } {
+  switch (route) {
+    case "premium":
+      return { provider: "claude", tier: "premium" };
+    case "advanced":
+    case "claude_premium":
+      return { provider: "claude", tier: "advanced" };
+    case "standard":
+    case "openai_control":
+    default:
+      return { provider: "openai", tier: "standard" };
+  }
+}
 
 type GenerateJsonOptions<TSchema extends z.ZodType> = {
   route: ModelRoute;
@@ -43,8 +68,9 @@ export async function generateValidatedJson<TSchema extends z.ZodType>(
 }
 
 async function generateRawJson<TSchema extends z.ZodType>(options: GenerateJsonOptions<TSchema>) {
-  if (options.route === "claude_premium") {
-    return callClaude(options);
+  const { provider, tier } = resolveTier(options.route);
+  if (provider === "claude") {
+    return callClaude(options, tier);
   }
 
   return callOpenAi(options);
@@ -62,7 +88,7 @@ async function repairJson<TSchema extends z.ZodType>(
 
   return generateRawJson({
     ...options,
-    route: "openai_control",
+    route: "standard",
     systemPrompt: "You repair invalid JSON for a strict Zod schema. Return only JSON.",
     userPrompt: repairPrompt,
   });
@@ -113,11 +139,17 @@ async function callOpenAi<TSchema extends z.ZodType>(options: GenerateJsonOption
   return content;
 }
 
-async function callClaude<TSchema extends z.ZodType>(options: GenerateJsonOptions<TSchema>) {
+async function callClaude<TSchema extends z.ZodType>(
+  options: GenerateJsonOptions<TSchema>,
+  tier: "standard" | "advanced" | "premium",
+) {
   const env = getEnv();
   if (!hasSecret("ANTHROPIC_API_KEY")) {
     throw new Error("ANTHROPIC_API_KEY is required for Claude-routed agent work.");
   }
+
+  // premium -> Opus 4.8 (high-stakes emails only); everything else -> Sonnet 4.6.
+  const model = tier === "premium" ? env.ANTHROPIC_MODEL_PREMIUM ?? "claude-opus-4-8" : env.ANTHROPIC_MODEL_ADVANCED ?? "claude-sonnet-4-6";
 
   const response = await withRetry(
     async () => {
@@ -129,7 +161,7 @@ async function callClaude<TSchema extends z.ZodType>(options: GenerateJsonOption
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model,
           max_tokens: 1600,
           temperature: 0.35,
           system: options.systemPrompt,

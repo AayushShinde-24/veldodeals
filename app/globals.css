@@ -3599,3 +3599,194 @@ body {
     font-size: 40px;
   }
 }
+
+/* ============================================================
+   GLOW LAYER — appended last so it wins the cascade.
+   Adds an ambient, "glowing" feel across the product surface
+   plus the Continue-with-Google button styles.
+   ============================================================ */
+:root {
+  --glow: 0 0 48px rgba(57, 167, 255, 0.32);
+  --glow-violet: 0 0 52px rgba(139, 92, 246, 0.34);
+  --glow-mint: 0 0 46px rgba(22, 217, 168, 0.3);
+  --glow-ring: 0 0 0 1px rgba(57, 167, 255, 0.35), 0 0 26px rgba(57, 167, 255, 0.28);
+}
+
+/* Ambient light behind the app + auth shells */
+.main,
+.auth-root {
+  position: relative;
+}
+.main::before,
+.auth-root::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(900px 520px at 12% -8%, rgba(57, 167, 255, 0.16), transparent 60%),
+    radial-gradient(820px 520px at 100% 0%, rgba(139, 92, 246, 0.16), transparent 58%),
+    radial-gradient(760px 560px at 50% 120%, rgba(22, 217, 168, 0.1), transparent 60%);
+}
+.main > *,
+.auth-root > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Glowing primary buttons */
+.btn.primary {
+  box-shadow: var(--glow), 0 14px 34px rgba(124, 58, 237, 0.28);
+  transition: box-shadow 200ms ease, transform 160ms ease, filter 200ms ease;
+}
+.btn.primary:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 0 60px rgba(57, 167, 255, 0.5), 0 18px 44px rgba(124, 58, 237, 0.4);
+}
+
+/* Glowing active navigation */
+.nav a.active {
+  box-shadow: inset 0 0 0 1px rgba(57, 167, 255, 0.28), 0 0 30px rgba(57, 167, 255, 0.22);
+}
+.nav a.active svg {
+  filter: drop-shadow(0 0 8px rgba(57, 167, 255, 0.65));
+}
+
+/* Glowing brand mark */
+.brand-mark,
+.auth-brand .brand-mark {
+  filter: drop-shadow(0 0 12px rgba(57, 167, 255, 0.5));
+}
+
+/* Cards lift + glow on hover */
+.premium-card,
+.glass-card,
+.auth-panel {
+  transition: box-shadow 220ms ease, transform 180ms ease, border-color 220ms ease;
+}
+.premium-card:hover,
+.glass-card:hover {
+  border-color: rgba(57, 167, 255, 0.3);
+  box-shadow: var(--glow), var(--shadow);
+}
+.auth-form-panel {
+  box-shadow: var(--glow-violet), var(--shadow);
+}
+
+/* Inputs glow on focus */
+.control:focus-within,
+.auth-input-control:focus-within {
+  border-color: rgba(57, 167, 255, 0.55);
+  box-shadow: var(--glow-ring);
+}
+
+/* Continue with Google */
+.oauth-form {
+  width: 100%;
+}
+.oauth-btn {
+  width: 100%;
+  min-height: 46px;
+  gap: 10px;
+  font-weight: 600;
+  color: #f6f8ff;
+  border: 1px solid var(--line-strong);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.02), 0 8px 24px rgba(0, 0, 0, 0.28);
+  transition: box-shadow 200ms ease, transform 160ms ease, background 200ms ease;
+}
+.oauth-btn:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.12), 0 10px 30px rgba(0, 0, 0, 0.32);
+}
+
+/* "or" divider */
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+  color: var(--muted-2);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--line-strong), transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn.primary,
+  .premium-card,
+  .glass-card,
+  .auth-panel,
+  .oauth-btn {
+    transition: none;
+  }
+}
+
+/* Sidebar "Settings" entry */
+.account-settings-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  transition: 160ms ease;
+}
+.account-settings-link:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+}
+.account-settings-link.active {
+  color: var(--text);
+  background: rgba(57, 167, 255, 0.12);
+  border-color: rgba(57, 167, 255, 0.28);
+  box-shadow: 0 0 26px rgba(57, 167, 255, 0.2);
+}
+
+/* Settings tab bar (top of each settings page) */
+.settings-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 4px 0 22px;
+  padding: 5px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel-3);
+  backdrop-filter: blur(10px);
+}
+.settings-tabs a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  padding: 9px 14px;
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 500;
+  transition: 160ms ease;
+}
+.settings-tabs a:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+}
+.settings-tabs a.active {
+  color: #fff;
+  background: linear-gradient(135deg, rgba(29, 155, 255, 0.9), rgba(124, 58, 237, 0.9));
+  box-shadow: 0 0 26px rgba(57, 167, 255, 0.4);
+}

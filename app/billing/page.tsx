@@ -1,5 +1,6 @@
 import { CreditCard, ShieldCheck, WalletCards } from "lucide-react";
 import { DataTable, EmptyState, GlassCard, MetricCard, PageHeader, PageShell, SectionHeader, SettingsList } from "@/components/premium";
+import { SettingsTabs } from "@/components/settings-tabs";
 import { StatusPill } from "@/components/status-pill";
 import { getOperationalData, resolveUserId, type UiSearchParams } from "@/lib/ui/data";
 import { creditCosts, getRevenuePlan, revenuePlans } from "@/lib/revenue-os/pricing";
@@ -11,7 +12,8 @@ export default async function BillingPage({ searchParams }: { searchParams: UiSe
   const plan = getRevenuePlan(data.profile?.plan);
   return (
     <PageShell>
-      <PageHeader eyebrow="Billing" title="Credits and usage ledger" description="Credits move only through valid usage events, payment webhooks, or admin approval." />
+      <PageHeader eyebrow="Settings" title="Billing" description="Credits move only through valid usage events, payment webhooks, or admin approval." />
+      <SettingsTabs />
       <section className="grid cols-3">
         <MetricCard icon={WalletCards} label="Current balance" value={(data.profile?.credits_balance ?? 0).toLocaleString()} trend="From users.credits_balance" />
         <MetricCard icon={CreditCard} label="Plan" value={plan.name} trend={`${plan.monthlyCredits?.toLocaleString() ?? "Custom"} monthly credits`} tone="violet" />

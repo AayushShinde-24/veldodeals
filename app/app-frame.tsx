@@ -7,33 +7,26 @@ import {
   Bell,
   Bot,
   Building2,
-  CreditCard,
   Database,
   FileText,
   Handshake,
   Inbox,
-  KeyRound,
   LayoutDashboard,
   ListChecks,
-  LockKeyhole,
   Mail,
   Megaphone,
   Menu,
-  Plug,
   PhoneCall,
   Search,
-  Send,
-  ShieldCheck,
+  Settings,
   Sparkles,
   Target,
-  Upload,
-  UserCircle,
-  Users,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { BrandMark } from "@/components/brand-mark";
 import type { AuthProfile } from "@/lib/auth/server";
 
+// Core workflow only. Everything account/config-related now lives under Settings.
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/agent", label: "Vel AI", icon: Bot },
@@ -50,21 +43,10 @@ const nav = [
   { href: "/agents/tasks", label: "Tasks", icon: ListChecks },
   { href: "/agents/logs", label: "Logs", icon: Activity },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/profile", label: "Profile", icon: UserCircle },
-  { href: "/settings/api-keys", label: "API keys", icon: KeyRound },
 ];
 
-const accountNav = [
-  { href: "/profile", label: "Profile", icon: UserCircle },
-  { href: "/workspace", label: "Workspace", icon: Users },
-  { href: "/team", label: "Team", icon: Users },
-  { href: "/sending-accounts", label: "Sending accounts", icon: Send },
-  { href: "/integrations", label: "Integrations", icon: Plug },
-  { href: "/settings/compliance", label: "Compliance", icon: ShieldCheck },
-  { href: "/billing", label: "Billing", icon: CreditCard },
-  { href: "/security", label: "Security", icon: LockKeyhole },
-  { href: "/settings/api-keys", label: "API keys", icon: KeyRound },
-];
+// Routes that should highlight the single "Settings" entry.
+const settingsRoots = ["/settings", "/billing", "/integrations", "/profile", "/workspace", "/team", "/sending-accounts", "/security"];
 
 const publicRoutes = new Set([
   "/",
@@ -137,6 +119,14 @@ export function AppFrame({ children, profile }: { children: React.ReactNode; pro
         </nav>
 
         <div className="account-menu">
+          <a
+            href="/settings"
+            className={`account-settings-link ${settingsRoots.some((root) => pathname === root || pathname?.startsWith(`${root}/`)) ? "active" : ""}`}
+            title="Settings"
+          >
+            <Settings size={16} />
+            <span>Settings</span>
+          </a>
           <a className="account-profile-link" href="/profile" title="Open profile">
             <span className="sidebar-avatar">{initials}</span>
             <span className="account-summary">

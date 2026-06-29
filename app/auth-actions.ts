@@ -3,7 +3,21 @@
 import { redirect } from "next/navigation";
 import { createAuthClient } from "@/lib/auth/server";
 import { createServiceClient } from "@/lib/integrations/supabase";
+import { getEnv } from "@/lib/security/env";
 import { ensureDefaultWorkspace } from "@/src/lib/workspace/context";
+
+export async function signInWithGoogleAction() {
+  const supabase = await createAuthClient();
+  const appUrl = getEnv().VELDO_APP_URL.replace(/\/$/u, "");
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: `${appUrl}/auth/callback` },
+  });
+  if (error || !data.url) {
+    redirect(`/login?error=${encodeURIComponent("Google sign-in is unavailable right now. Please try again.")}`);
+  }
+  redirect(data.url);
+}
 
 export async function signInAction(formData: FormData) {
   const email = String(formData.get("email") ?? "");
