@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  Activity,
   BarChart3,
   Bell,
   Bot,
@@ -11,6 +12,7 @@ import {
   Handshake,
   Inbox,
   LayoutDashboard,
+  ListChecks,
   Mail,
   Megaphone,
   Menu,
@@ -20,13 +22,13 @@ import {
   Settings,
   Sparkles,
   Target,
-  Users,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { BrandMark } from "@/components/brand-mark";
 import type { AuthProfile } from "@/lib/auth/server";
 
-const mainNav = [
+// Core workflow only. Everything account/config-related now lives under Settings.
+const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/agent", label: "Vel AI", icon: Bot },
   { href: "/campaigns", label: "Campaigns", icon: Target },
@@ -39,14 +41,14 @@ const mainNav = [
   { href: "/crm", label: "CRM deals", icon: Handshake },
   { href: "/fundraising", label: "Fundraising", icon: Megaphone },
   { href: "/marketing", label: "Marketing", icon: Radio },
+  { href: "/agents", label: "Agents", icon: Bot },
+  { href: "/agents/tasks", label: "Tasks", icon: ListChecks },
+  { href: "/agents/logs", label: "Logs", icon: Activity },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
 ];
 
-const accountNav = [
-  { href: "/settings", label: "Settings", icon: Settings },
-  { href: "/team", label: "Team", icon: Users },
-  { href: "/workspace", label: "Workspace", icon: Building2 },
-];
+// Routes that should highlight the single "Settings" entry.
+const settingsRoots = ["/settings", "/billing", "/integrations", "/profile", "/workspace", "/team", "/sending-accounts", "/security"];
 
 const publicRoutes = new Set([
   "/",
@@ -166,7 +168,7 @@ export function AppFrame({ children, profile }: { children: React.ReactNode; pro
         </div>
 
         <nav className="nav" aria-label="Main navigation">
-          {mainNav.map((item) => {
+          {nav.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(`${item.href}/`));
             return (
@@ -185,25 +187,15 @@ export function AppFrame({ children, profile }: { children: React.ReactNode; pro
 
         <div className="nav-divider" aria-hidden="true" />
 
-        <nav className="nav nav-account" aria-label="Account navigation">
-          {accountNav.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
-            return (
-              <a
-                href={item.href}
-                key={item.href}
-                className={isActive ? "active" : undefined}
-                title={item.label}
-              >
-                <Icon size={16} />
-                <span>{item.label}</span>
-              </a>
-            );
-          })}
-        </nav>
-
         <div className="account-menu">
+          <a
+            href="/settings"
+            className={`account-settings-link ${settingsRoots.some((root) => pathname === root || pathname?.startsWith(`${root}/`)) ? "active" : ""}`}
+            title="Settings"
+          >
+            <Settings size={16} />
+            <span>Settings</span>
+          </a>
           <a className="account-profile-link" href="/profile" title="Open profile">
             <span className="sidebar-avatar">{initials}</span>
             <span className="account-summary">

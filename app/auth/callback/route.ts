@@ -1,39 +1,31 @@
-import { NextResponse, type NextRequest } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
+import { NextRequest, NextResponse } from "next/server";
+import { createAuthClient } from "@/lib/auth/server";
+import { getEnv } from "@/lib/security/env";
+import { ensureDefaultWorkspace } from "@/src/lib/workspace/context";
 
-// OAuth callback: Supabase redirects here with a `code` after Google sign-in.
-// We exchange it for a session (setting auth cookies), then forward the user on.
+/**
+ * OAuth (e.g. Continue with Google) session-exchange callback.
+ * Distinct from /api/auth/google/callback, which connects a mailbox.
+ */
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url);
-  const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard";
+  const appUrl = getEnv().VELDO_APP_URL.replace(/\/$/u, "");
+  const code = request.nextUrl.searchParams.get("code");
+  const rawNext = request.nextUrl.searchParams.get("next");
+  const next = rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
 
-  if (code) {
-    const cookieStore = await cookies();
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "",
-      {
-        cookies: {
-          getAll: () => cookieStore.getAll(),
-          setAll: (cookiesToSet) => {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              );
-            } catch {
-              // Read-only context — ignore.
-            }
-          },
-        },
-      }
-    );
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) {
-      return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error.message)}`);
-    }
+  if (!code) {
+    return NextResponse.redirect(`${appUrl}/login?error=${encodeURIComponent("Sign-in could not be completed. Please try again.")}`);
   }
 
-  return NextResponse.redirect(`${origin}${next}`);
+  try {
+    const supabase = await createAuthClient();
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error || !data.user) {
+      return NextResponse.redirect(`${appUrl}/login?error=${encodeURIComponent("Sign-in could not be completed. Please try again.")}`);
+    }
+    await ensureDefaultWorkspace(data.user.id, data.user.email ?? "", data.user.user_metadata ?? {});
+    return NextResponse.redirect(`${appUrl}${next}`);
+  } catch {
+    return NextResponse.redirect(`${appUrl}/login?error=${encodeURIComponent("Sign-in could not be completed. Please try again.")}`);
+  }
 }
