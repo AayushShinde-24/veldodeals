@@ -1,6 +1,6 @@
 import { ArrowRight, CheckCircle2, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
-import { GoogleAuthButton } from "@/components/google-auth-button";
+import { AuthDivider, GoogleAuthButton } from "@/components/google-auth-button";
 import { isDemoMode } from "@/lib/demo/mode";
 import { signInAction } from "@/app/auth-actions";
 
@@ -10,7 +10,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <AuthLayout active="login" title="Welcome back" subtitle="Sign in to continue to your Veldo workspace." error={error}>
       <GoogleAuthButton demo={demo} next="/dashboard" />
-      <div className="auth-divider"><span>or</span></div>
+      <AuthDivider />
       <form className="form" action={signInAction}>
         <AuthInput icon={<Mail size={18} />} id="email" name="email" label="Work email" placeholder="name@company.com" type="email" />
         <AuthInput icon={<LockKeyhole size={18} />} id="password" name="password" label="Password" placeholder="Enter your password" type="password" />

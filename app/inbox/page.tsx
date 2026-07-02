@@ -41,7 +41,7 @@ export default async function InboxPage() {
             <EmptyState
               icon={Inbox}
               title="No replies yet"
-              description="Connect your Gmail mailbox and hit Sync to pull in replies from active campaigns."
+              description="Connect your mailbox and hit Sync to pull in replies from active campaigns."
               action={
                 <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
                   <a className="btn primary" href="/settings/integrations">Connect mailbox</a>

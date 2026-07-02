@@ -1,6 +1,6 @@
 import { ArrowRight, CheckCircle2, LockKeyhole, Mail, ShieldCheck } from "lucide-react";
 import { BrandMark } from "@/components/brand-mark";
-import { GoogleAuthButton } from "@/components/google-auth-button";
+import { AuthDivider, GoogleAuthButton } from "@/components/google-auth-button";
 import { isDemoMode } from "@/lib/demo/mode";
 import { signUpAction } from "@/app/auth-actions";
 
@@ -24,10 +24,10 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
         <section className="auth-panel auth-form-panel">
           <div className="auth-tabs"><a href="/login">Sign in</a><a className="active" href="/signup">Sign up</a></div>
           <h1>Create your account</h1>
-          <p>Two ways in — no passwords to remember if you use Google.</p>
+          <p>Two ways in — skip the password if you continue with Google.</p>
           {error ? <div className="status failed" style={{ marginBottom: 14 }}>{error}</div> : null}
-          <GoogleAuthButton demo={demo} next="/onboarding" />
-          <div className="auth-divider"><span>or</span></div>
+          <GoogleAuthButton demo={demo} next="/onboarding" label="Sign up with Google" />
+          <AuthDivider />
           <form className="form" action={signUpAction}>
             <AuthInput icon={<Mail size={18} />} id="email" name="email" label="Work email" placeholder="name@company.com" type="email" />
             <AuthInput icon={<LockKeyhole size={18} />} id="password" name="password" label="Password" placeholder="Create a password" type="password" />

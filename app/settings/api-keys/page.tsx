@@ -6,7 +6,7 @@ export default async function ApiKeysPage() {
   return (
     <PageShell>
       <PageHeader
-        eyebrow="Developer settings"
+        eyebrow="Settings"
         title="API keys"
         description="Create secret keys for server-side Veldo integrations. Full keys are shown once at creation."
         actions={<a className="btn primary" href="#create-api-key"><KeyRound size={16} /> Generate new API key</a>}

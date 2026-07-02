@@ -4,8 +4,23 @@ import { redirect } from "next/navigation";
 import { createAuthClient } from "@/lib/auth/server";
 import { createServiceClient } from "@/lib/integrations/supabase";
 import { isDemoMode } from "@/lib/demo/mode";
+import { getEnv } from "@/lib/security/env";
 import { ensureDefaultWorkspace } from "@/src/lib/workspace/context";
 import { trackEvent } from "@/src/lib/analytics/events";
+
+export async function signInWithGoogleAction(next: string = "/dashboard") {
+  const supabase = await createAuthClient();
+  const appUrl = getEnv().VELDO_APP_URL.replace(/\/$/u, "");
+  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard";
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: `${appUrl}/auth/callback?next=${encodeURIComponent(safeNext)}` },
+  });
+  if (error || !data.url) {
+    redirect(`/login?error=${encodeURIComponent("Google sign-in is unavailable right now. Please try again.")}`);
+  }
+  redirect(data.url);
+}
 
 export async function signInAction(formData: FormData) {
   // Demo mode: no Supabase configured — skip auth and enter the demo workspace.
