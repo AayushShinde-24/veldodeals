@@ -37,7 +37,19 @@ export default async function InboxPage() {
               <details className="lead-detail"><summary>Open reply</summary><p>{reply.body ?? reply.raw_reply ?? "No body stored."}</p></details>,
             ];
           })}
-          empty={<EmptyState title="No replies yet" description="Connect a mailbox and sync replies after sending approved outreach." />}
+          empty={
+            <EmptyState
+              icon={Inbox}
+              title="No replies yet"
+              description="Connect your Gmail mailbox and hit Sync to pull in replies from active campaigns."
+              action={
+                <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+                  <a className="btn primary" href="/settings/integrations">Connect mailbox</a>
+                  <form action="/api/mailbox/sync" method="post"><button className="btn" type="submit">Sync now</button></form>
+                </div>
+              }
+            />
+          }
         />
       </GlassCard>
     </PageShell>

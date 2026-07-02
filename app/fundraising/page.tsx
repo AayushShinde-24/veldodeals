@@ -1,8 +1,9 @@
 import { HandCoins, Megaphone, ShieldCheck } from "lucide-react";
-import { DataTable, EmptyState, GlassCard, MetricCard, PageHeader, PageShell, SectionHeader, SettingsList } from "@/components/premium";
+import { Badge, DataTable, EmptyState, GlassCard, MetricCard, PageHeader, PageShell, SectionHeader, SettingsList } from "@/components/premium";
 import { StatusPill } from "@/components/status-pill";
 import { getOperationalData, resolveUserId, type UiSearchParams } from "@/lib/ui/data";
 import { getLaunchReadiness } from "@/lib/revenue-os/readiness";
+import { paygRates } from "@/lib/revenue-os/pricing";
 
 export default async function FundraisingPage({ searchParams }: { searchParams: UiSearchParams }) {
   const userId = await resolveUserId(searchParams);
@@ -19,6 +20,14 @@ export default async function FundraisingPage({ searchParams }: { searchParams: 
         <MetricCard icon={Megaphone} label="Outreach tasks" value={data.fundraisingTasks.length} trend="Drafted or review-gated" tone="violet" />
         <MetricCard icon={ShieldCheck} label="Legal review" value={legalReview} trend="Unsafe claims stay blocked" tone="orange" />
       </section>
+      <GlassCard glow>
+        <SectionHeader title="Success fee" description={`Veldo charges a ${paygRates.dealFeePct}% fee on capital raised through the platform — only when a round closes.`} action={<Badge tone="violet">Team &amp; Enterprise</Badge>} />
+        <div className="grid cols-3">
+          <div className="premium-list-row"><span>Fee on closed rounds</span><strong>{paygRates.dealFeePct}%</strong></div>
+          <div className="premium-list-row"><span>When charged</span><strong>On close only</strong></div>
+          <div className="premium-list-row"><span>Recorded to</span><strong>Deal-fee ledger</strong></div>
+        </div>
+      </GlassCard>
       <section className="grid cols-2">
         <GlassCard>
           <SectionHeader title="Readiness" description="Provider and compliance state for fundraising workflows." />

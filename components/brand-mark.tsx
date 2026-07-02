@@ -1,11 +1,14 @@
-import { ClipboardCheck } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Zap } from "lucide-react";
 
-export function BrandMark({ className }: { className?: string }) {
+export function BrandMark({ size = 38 }: { size?: number }) {
   return (
-    <span className={cn("brand-mark", className)} aria-hidden="true">
+    <span
+      className="brand-mark"
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.52) }}
+      aria-hidden="true"
+    >
       <span className="brand-v">V</span>
-      <ClipboardCheck className="brand-spark" size={12} />
+      <Zap size={Math.round(size * 0.28)} className="brand-spark" />
     </span>
   );
 }

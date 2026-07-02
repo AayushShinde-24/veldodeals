@@ -1,28 +1,63 @@
-import "server-only";
+import { fetchWithRetry, isTransientError } from "@/lib/integrations/retry";
 
-import { getEnv, hasSecret } from "@/lib/security/env";
-import { withRetry } from "@/lib/integrations/retry";
+export interface ApolloQuery {
+  q_keywords?: string;
+  person_titles?: string[];
+  organization_industry_tag_ids?: string[];
+  per_page?: number;
+  page?: number;
+  [key: string]: unknown;
+}
 
-export async function fetchApolloPeople(params: Record<string, unknown>, userId: string) {
-  const env = getEnv();
-  if (!hasSecret("APOLLO_API_KEY")) {
-    throw new Error("APOLLO_API_KEY is required to import Apollo leads.");
+export interface ApolloPerson {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  name: string | null;
+  email: string | null;
+  title: string | null;
+  organization_name: string | null;
+  linkedin_url: string | null;
+}
+
+export interface ApolloResponse {
+  people: ApolloPerson[];
+  pagination: { total_entries: number; page: number };
+}
+
+export async function fetchApolloPeople(
+  query: ApolloQuery,
+  _userId: string
+): Promise<ApolloResponse> {
+  const apiKey = process.env.APOLLO_API_KEY;
+  if (!apiKey) {
+    return {
+      people: [],
+      pagination: { total_entries: 0, page: 1 },
+    };
   }
 
-  return withRetry(
-    async () => {
-      const res = await fetch("https://api.apollo.io/v1/mixed_people/search", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-cache",
-          "X-Api-Key": env.APOLLO_API_KEY ?? "",
-        },
-        body: JSON.stringify(params),
-      });
-      if (!res.ok) throw new Error(`Apollo request failed with ${res.status}`);
-      return res.json() as Promise<Record<string, unknown>>;
+  const body = {
+    api_key: apiKey,
+    per_page: query.per_page ?? 25,
+    page: query.page ?? 1,
+    ...query,
+  };
+
+  const res = await fetchWithRetry(
+    "https://api.apollo.io/v1/mixed_people/search",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     },
-    { provider: "apollo", endpoint: "/v1/mixed_people/search", userId },
+    { provider: "apollo", endpoint: "mixed_people.search", shouldRetry: isTransientError, timeoutMs: 20_000 }
   );
+
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as { message?: string };
+    throw new Error(`Apollo API error: ${err.message ?? res.statusText}`);
+  }
+
+  return res.json() as Promise<ApolloResponse>;
 }

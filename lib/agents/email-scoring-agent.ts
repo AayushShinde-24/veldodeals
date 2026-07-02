@@ -1,61 +1,66 @@
-import "server-only";
+import { createServiceClient } from "@/lib/integrations/supabase";
+import { generateStructured, clampScore } from "@/lib/agents/structured";
+import { GATE_THRESHOLDS } from "@/lib/agents/send-gate-agent";
 
-import { fetchLeadBundle, getDb, logAgent, saveDecision, updateLeadStage, wordCount } from "@/lib/agents/agent-helpers";
-import { emailQualityOutputSchema, type AgentContext, type EmailQualityOutput } from "@/lib/agents/schemas";
+export interface EmailScoreResult {
+  draftId: string;
+  score: number;
+  issues: string[];
+  passesThreshold: boolean;
+}
 
-export async function runEmailScoringAgent(_input: Record<string, unknown>, context: AgentContext): Promise<EmailQualityOutput> {
-  if (!context.leadId) throw new Error("lead_id is required for email scoring.");
-  const db = getDb();
-  const bundle = await fetchLeadBundle(db, context.leadId);
-  if (!bundle.email) throw new Error("Email draft not found.");
+interface ScorePayload {
+  score: number;
+  issues: string[];
+  spammy: boolean;
+}
 
-  const body = String(bundle.email.email_body ?? "");
-  const wc = wordCount(body);
-  const fixes: string[] = [];
-  let score = 0;
+/**
+ * Score a generated email for quality + deliverability (clarity, relevance, length,
+ * spam-trigger words, single CTA). Writes email_scores and stamps generated_emails.
+ * Feeds the email-score send-gate (threshold 75).
+ */
+export async function scoreEmail(input: { userId: string; draftId: string }): Promise<EmailScoreResult> {
+  const db = createServiceClient();
 
-  if (bundle.publicSignals?.best_signal && !/no strong/i.test(bundle.publicSignals.best_signal)) score += 25;
-  else fixes.push("Use a real public business signal or send to review.");
-  if (bundle.lead.title) score += 20;
-  else fixes.push("Confirm role relevance.");
-  if (bundle.personalization?.pain_point) score += 20;
-  else fixes.push("Add a clear business pain point.");
-  if (!/(guaranteed|act now|last chance|urgent|free money|limited time)/iu.test(body)) score += 15;
-  else fixes.push("Remove spammy or misleading wording.");
-  if (wc <= 110) score += 10;
-  else fixes.push("Reduce email below 110 words.");
-  if (String(bundle.email.cta ?? body).length > 0 && /\?/.test(body)) score += 10;
-  else fixes.push("Add one simple question-based CTA.");
+  const { data: draft } = await db
+    .from("generated_emails")
+    .select("lead_id, subject, body, email_body")
+    .eq("id", input.draftId)
+    .eq("user_id", input.userId)
+    .maybeSingle();
 
-  const inventedOrPrivate = /(saw you liked|watched your|private|DM|direct message|browsing history)/iu.test(body);
-  if (inventedOrPrivate) {
-    score = 0;
-    fixes.unshift("Remove invented, private, or surveillance-like claims.");
-  }
+  if (!draft) throw new Error("Draft not found for scoring.");
 
-  const pass = score >= 75 && !inventedOrPrivate;
-  const output = emailQualityOutputSchema.parse({
-    lead_id: context.leadId,
-    score,
-    pass,
-    fail_reason: pass ? "" : fixes[0] ?? "Email score below sending threshold.",
-    fixes,
-    final_verdict: pass ? "send" : score >= 50 ? "revise" : "reject",
+  const body = draft.body ?? draft.email_body ?? "";
+
+  const { data } = await generateStructured<ScorePayload>({
+    system:
+      "You are a cold-email QA reviewer. Score an email 0-100 on reply-worthiness AND deliverability. Penalize: vague value, multiple CTAs, length over ~120 words, hypey/spam-trigger language, broken personalization. Return concrete issues.",
+    prompt: [
+      `Subject: ${draft.subject ?? ""}`,
+      `Body:\n${body}`,
+      `\nReturn JSON: { "score": number 0-100, "issues": string[], "spammy": boolean }`,
+    ].join("\n"),
+    tier: "fast",
+    maxTokens: 400,
   });
 
-  await db.from("email_scores").upsert({
-    user_id: context.userId,
-    campaign_id: context.campaignId,
-    lead_id: context.leadId,
-    score: output.score,
-    pass: output.pass,
-    fail_reason: output.fail_reason,
-    fixes: output.fixes,
-    final_verdict: output.final_verdict,
-  }, { onConflict: "lead_id" });
+  const score = clampScore(data.score);
+  const issues = Array.isArray(data.issues) ? data.issues.map(String).slice(0, 6) : [];
 
-  await updateLeadStage(db, context.leadId, output.pass ? "scored_email" : "needs_review");
-  await logAgent(db, { ...context, agentName: "email_quality_scoring" }, "Email quality scored.", "info", { score: output.score, verdict: output.final_verdict });
-  await saveDecision(db, { ...context, agentName: "email_quality_scoring" }, output, output.score, !output.pass);
-  return output;
+  await db.from("email_scores").insert({
+    user_id: input.userId,
+    lead_id: draft.lead_id,
+    score,
+    created_at: new Date().toISOString(),
+  });
+
+  await db
+    .from("generated_emails")
+    .update({ email_score: score, safety_status: score >= GATE_THRESHOLDS.emailScore ? "checked" : "needs_review" })
+    .eq("id", input.draftId)
+    .eq("user_id", input.userId);
+
+  return { draftId: input.draftId, score, issues, passesThreshold: score >= GATE_THRESHOLDS.emailScore };
 }

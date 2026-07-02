@@ -4,6 +4,7 @@ import { DataTable, EmptyState, GlassCard, PageHeader, PageShell, SectionHeader 
 import { StatusPill } from "@/components/status-pill";
 import { getCurrentUser } from "@/lib/auth/server";
 import { getOperationalData } from "@/lib/ui/data";
+import { approveDraftAction, rejectDraftAction } from "./actions";
 
 export default async function PersonalizationPage() {
   const user = await getCurrentUser();
@@ -17,7 +18,7 @@ export default async function PersonalizationPage() {
       <GlassCard>
         <SectionHeader title="Personalized lead records" description="This is the working record for lead-specific copy, not a placeholder strategy board." action={<Mail size={18} color="var(--cyan)" />} />
         <DataTable
-          headers={["Lead", "Company", "Email written", "Status", "Personalization / body"]}
+          headers={["Lead", "Company", "Email written", "Status", "Personalization / body", "Review"]}
           rows={data.leads.map((lead) => {
             const draft = drafts.find((item) => item.lead_id === lead.id);
             return [
@@ -29,10 +30,23 @@ export default async function PersonalizationPage() {
                 <summary>Open record</summary>
                 <div>
                   <p><strong>Subject:</strong> {draft?.subject ?? draft?.subject_1 ?? "No draft yet"}</p>
+                  {draft?.email_score ? <p><strong>QA:</strong> {String(draft.email_score)}/100</p> : null}
                   <p>{draft?.body ?? draft?.email_body ?? "Run personalization/email agents to create this lead's draft."}</p>
                   {draft?.personalization_reason ? <p><strong>Why:</strong> {draft.personalization_reason}</p> : null}
                 </div>
               </details>,
+              draft?.id ? (
+                <div className="inline-actions">
+                  <form action={approveDraftAction}>
+                    <input name="generated_email_id" type="hidden" value={String(draft.id)} />
+                    <button className="btn tiny primary" type="submit">Approve</button>
+                  </form>
+                  <form action={rejectDraftAction}>
+                    <input name="generated_email_id" type="hidden" value={String(draft.id)} />
+                    <button className="btn tiny ghost" type="submit">Reject</button>
+                  </form>
+                </div>
+              ) : "Run Vel AI",
             ];
           })}
           empty={<EmptyState icon={UserCircle} title="No leads to personalize" description="Generate or import leads first, then Veldo will attach personalized drafts and send records here." />}

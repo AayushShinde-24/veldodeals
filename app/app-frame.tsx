@@ -1,40 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  Activity,
   BarChart3,
   Bell,
   Bot,
   Building2,
-  CreditCard,
   Database,
   FileText,
   Handshake,
   Inbox,
-  KeyRound,
   LayoutDashboard,
-  ListChecks,
-  LockKeyhole,
   Mail,
   Megaphone,
   Menu,
-  Plug,
   PhoneCall,
+  Radio,
   Search,
-  Send,
-  ShieldCheck,
+  Settings,
   Sparkles,
   Target,
-  Upload,
-  UserCircle,
   Users,
 } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { BrandMark } from "@/components/brand-mark";
 import type { AuthProfile } from "@/lib/auth/server";
 
-const nav = [
+const mainNav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/agent", label: "Vel AI", icon: Bot },
   { href: "/campaigns", label: "Campaigns", icon: Target },
@@ -46,24 +38,14 @@ const nav = [
   { href: "/calls", label: "Calls", icon: PhoneCall },
   { href: "/crm", label: "CRM deals", icon: Handshake },
   { href: "/fundraising", label: "Fundraising", icon: Megaphone },
-  { href: "/agents", label: "Agents", icon: Bot },
-  { href: "/agents/tasks", label: "Tasks", icon: ListChecks },
-  { href: "/agents/logs", label: "Logs", icon: Activity },
+  { href: "/marketing", label: "Marketing", icon: Radio },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/profile", label: "Profile", icon: UserCircle },
-  { href: "/settings/api-keys", label: "API keys", icon: KeyRound },
 ];
 
 const accountNav = [
-  { href: "/profile", label: "Profile", icon: UserCircle },
-  { href: "/workspace", label: "Workspace", icon: Users },
+  { href: "/settings", label: "Settings", icon: Settings },
   { href: "/team", label: "Team", icon: Users },
-  { href: "/sending-accounts", label: "Sending accounts", icon: Send },
-  { href: "/integrations", label: "Integrations", icon: Plug },
-  { href: "/settings/compliance", label: "Compliance", icon: ShieldCheck },
-  { href: "/billing", label: "Billing", icon: CreditCard },
-  { href: "/security", label: "Security", icon: LockKeyhole },
-  { href: "/settings/api-keys", label: "API keys", icon: KeyRound },
+  { href: "/workspace", label: "Workspace", icon: Building2 },
 ];
 
 const publicRoutes = new Set([
@@ -76,16 +58,37 @@ const publicRoutes = new Set([
   "/data-deletion",
   "/unsubscribe",
   "/unsubscribe/confirmed",
+  "/pricing",
 ]);
 
 export function AppFrame({ children, profile }: { children: React.ReactNode; profile: AuthProfile | null }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const backdropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const stored = window.localStorage.getItem("veldo-sidebar-collapsed");
-    setCollapsed(stored ? stored === "true" : window.matchMedia("(max-width: 760px)").matches);
+    setCollapsed(stored ? stored === "true" : window.matchMedia("(max-width: 768px)").matches);
   }, []);
+
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  // Cmd+K / Ctrl+K → navigate to Vel AI
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        router.push("/agent");
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [router]);
 
   if (pathname?.startsWith("/veldo-ui-preview") || publicRoutes.has(pathname ?? "")) {
     return <>{children}</>;
@@ -93,25 +96,57 @@ export function AppFrame({ children, profile }: { children: React.ReactNode; pro
 
   const workspace = profile?.workspace_name || profile?.company_name || "Veldo Workspace";
   const name = profile?.full_name || profile?.email?.split("@")[0] || "Operator";
-  const initials = workspace
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("") || "V";
-  const activeHref = (href: string) => pathname === href || (href !== "/" && pathname?.startsWith(`${href}/`));
+  const initials =
+    workspace
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join("") || "V";
+
+  const activeHref = (href: string) =>
+    pathname === href || (href !== "/" && href !== "/campaigns" && pathname?.startsWith(`${href}/`))
+      ? true
+      : pathname === href;
 
   function toggleSidebar() {
-    setCollapsed((current) => {
-      const next = !current;
-      window.localStorage.setItem("veldo-sidebar-collapsed", String(next));
-      return next;
-    });
+    const isMobile = window.matchMedia("(max-width: 768px)").matches;
+    if (isMobile) {
+      setMobileOpen((prev) => !prev);
+    } else {
+      setCollapsed((current) => {
+        const next = !current;
+        window.localStorage.setItem("veldo-sidebar-collapsed", String(next));
+        return next;
+      });
+    }
   }
 
+  function closeMobile() {
+    setMobileOpen(false);
+  }
+
+  const sidebarClass = [
+    "sidebar",
+    collapsed ? "sidebar-collapsed" : "",
+    mobileOpen ? "mobile-open" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div className={`app ${collapsed ? "sidebar-collapsed" : ""}`}>
-      <aside className="sidebar">
+    <div className={`app${collapsed ? " sidebar-collapsed" : ""}`}>
+      {/* Mobile backdrop */}
+      {mobileOpen && (
+        <div
+          ref={backdropRef}
+          className="sidebar-backdrop"
+          onClick={closeMobile}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside className={sidebarClass}>
         <div className="sidebar-head">
           <a className="brand" href="/dashboard" aria-label="Veldo dashboard">
             <BrandMark />
@@ -119,16 +154,48 @@ export function AppFrame({ children, profile }: { children: React.ReactNode; pro
               Veldo<small>AI Sales Team OS</small>
             </span>
           </a>
-          <button className="sidebar-toggle" type="button" onClick={toggleSidebar} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed}>
+          <button
+            className="sidebar-toggle"
+            type="button"
+            onClick={toggleSidebar}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-expanded={!collapsed}
+          >
             <Menu size={20} />
           </button>
         </div>
 
         <nav className="nav" aria-label="Main navigation">
-          {nav.map((item) => {
+          {mainNav.map((item) => {
             const Icon = item.icon;
+            const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(`${item.href}/`));
             return (
-              <a href={item.href} key={item.href} className={activeHref(item.href) ? "active" : undefined} title={item.label}>
+              <a
+                href={item.href}
+                key={item.href}
+                className={isActive ? "active" : undefined}
+                title={item.label}
+              >
+                <Icon size={16} />
+                <span>{item.label}</span>
+              </a>
+            );
+          })}
+        </nav>
+
+        <div className="nav-divider" aria-hidden="true" />
+
+        <nav className="nav nav-account" aria-label="Account navigation">
+          {accountNav.map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
+            return (
+              <a
+                href={item.href}
+                key={item.href}
+                className={isActive ? "active" : undefined}
+                title={item.label}
+              >
                 <Icon size={16} />
                 <span>{item.label}</span>
               </a>
@@ -149,16 +216,21 @@ export function AppFrame({ children, profile }: { children: React.ReactNode; pro
 
       <main className="main">
         <div className="topbar">
-          <button className="sidebar-toggle mobile-toggle" type="button" onClick={toggleSidebar} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}>
+          <button
+            className="sidebar-toggle mobile-toggle"
+            type="button"
+            onClick={toggleSidebar}
+            aria-label="Toggle sidebar"
+          >
             <Menu size={20} />
           </button>
-          <div className="topbar-search">
+          <a className="topbar-search" href="/agent" aria-label="Ask Vel AI (Ctrl+K)">
             <Search size={16} />
-            <span>Search campaigns, leads, agents...</span>
+            <span>Ask Vel to find leads, draft, review, or summarize...</span>
             <kbd>Ctrl K</kbd>
-          </div>
+          </a>
           <div className="topbar-actions">
-            <a className="icon-btn" href="/agents/logs" aria-label="Notifications">
+            <a className="icon-btn" href="/inbox" aria-label="Replies">
               <Bell size={18} />
             </a>
             <a className="workspace-chip" href="/workspace">

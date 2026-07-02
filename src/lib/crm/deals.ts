@@ -1,57 +1,152 @@
-import "server-only";
-
-import { z } from "zod";
 import { createServiceClient } from "@/lib/integrations/supabase";
-import { writeAuditLog } from "@/src/lib/audit/log";
-import { recordAnalyticsEvent } from "@/src/lib/analytics/events";
+import { trackEvent } from "@/src/lib/analytics/events";
+import { emitCustomerWebhook } from "@/lib/webhooks/customer";
+import { recordDealClose } from "@/lib/billing/deal-fees";
 
-export const crmDealInputSchema = z.object({
-  workspaceId: z.string().uuid(),
-  userId: z.string().uuid(),
-  leadId: z.string().uuid().optional(),
-  companyId: z.string().uuid().optional(),
-  title: z.string().min(2),
-  value: z.coerce.number().int().min(0).default(0),
-  stage: z.string().min(1).default("new"),
-  probability: z.coerce.number().int().min(0).max(100).default(10),
-  expectedCloseDate: z.string().optional(),
-  notes: z.string().optional(),
-});
+export type DealStage = "prospect" | "qualified" | "proposal" | "negotiation" | "closed_won" | "closed_lost";
 
-export async function createCrmDeal(raw: unknown) {
-  const input = crmDealInputSchema.parse(raw);
-  const { data, error } = await createServiceClient()
-    .from("crm_deals")
+export interface Deal {
+  id: string;
+  userId: string;
+  leadId: string | null;
+  campaignId: string | null;
+  name: string;
+  company: string;
+  contactEmail: string;
+  stage: DealStage;
+  value: number | null;
+  probability: number;
+  expectedCloseDate: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
+export async function getDeals(userId: string): Promise<Deal[]> {
+  const db = createServiceClient();
+  const { data } = await db
+    .from("deals")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  return (data ?? []).map(mapDeal);
+}
+
+export async function createDeal(
+  userId: string,
+  input: Omit<Deal, "id" | "userId" | "createdAt" | "updatedAt">
+): Promise<Deal> {
+  const db = createServiceClient();
+  const { data, error } = await db
+    .from("deals")
     .insert({
-      workspace_id: input.workspaceId,
-      lead_id: input.leadId ?? null,
-      company_id: input.companyId ?? null,
-      title: input.title,
-      value: input.value,
+      user_id: userId,
+      lead_id: input.leadId,
+      campaign_id: input.campaignId,
+      name: input.name,
+      company: input.company,
+      contact_email: input.contactEmail,
       stage: input.stage,
+      value: input.value,
       probability: input.probability,
-      expected_close_date: input.expectedCloseDate ?? null,
-      notes: input.notes ?? null,
+      expected_close_date: input.expectedCloseDate,
+      notes: input.notes,
+      created_at: new Date().toISOString(),
     })
     .select("*")
     .single();
 
-  if (error) throw new Error(error.message);
-  await writeAuditLog({ workspaceId: input.workspaceId, userId: input.userId, action: "crm.deal.created", metadata: { dealId: data.id, leadId: input.leadId ?? null } });
-  await recordAnalyticsEvent({ workspaceId: input.workspaceId, eventType: "crm_deal_created", entityId: data.id, metadata: { stage: data.stage, value: data.value } });
-  return data;
+  if (error || !data) throw new Error(`Failed to create deal: ${error?.message}`);
+  const deal = mapDeal(data);
+  await trackEvent({ userId, event: "first_deal", entityId: deal.id, properties: { campaign_id: deal.campaignId } });
+  await emitCustomerWebhook({
+    userId,
+    event: "deal.created",
+    payload: { deal_id: deal.id, campaign_id: deal.campaignId, lead_id: deal.leadId, value: deal.value },
+  });
+  return deal;
 }
 
-export async function updateCrmDealStage(input: { workspaceId: string; userId: string; dealId: string; stage: string }) {
-  const { data, error } = await createServiceClient()
-    .from("crm_deals")
-    .update({ stage: input.stage })
-    .eq("workspace_id", input.workspaceId)
-    .eq("id", input.dealId)
+export async function updateDealStage(
+  userId: string,
+  dealId: string,
+  stage: DealStage
+): Promise<Deal> {
+  const db = createServiceClient();
+  const { data, error } = await db
+    .from("deals")
+    .update({ stage, updated_at: new Date().toISOString() })
+    .eq("id", dealId)
+    .eq("user_id", userId)
     .select("*")
     .single();
-  if (error) throw new Error(error.message);
-  await writeAuditLog({ workspaceId: input.workspaceId, userId: input.userId, action: "crm.deal.stage_updated", metadata: { dealId: input.dealId, stage: input.stage } });
-  await recordAnalyticsEvent({ workspaceId: input.workspaceId, eventType: "crm_deal_stage_updated", entityId: input.dealId, metadata: { stage: input.stage } });
-  return data;
+
+  if (error || !data) throw new Error(`Failed to update deal: ${error?.message}`);
+  const deal = mapDeal(data);
+
+  // Reaching the proposal stage auto-drafts a proposal (dynamic import avoids a cycle).
+  if (stage === "proposal") {
+    const { generateProposal } = await import("@/lib/deals/proposals");
+    await generateProposal({ userId, dealId }).catch(() => {});
+  }
+
+  // Closing a deal accrues Veldo's 2.5% fee (every tier) and emits a webhook.
+  if (stage === "closed_won" && (deal.value ?? 0) > 0) {
+    await recordDealClose({
+      userId,
+      dealId: deal.id,
+      dealType: "sales",
+      dealValue: deal.value ?? 0,
+    }).catch(() => {});
+    await emitCustomerWebhook({
+      userId,
+      event: "deal.won",
+      payload: { deal_id: deal.id, value: deal.value, company: deal.company },
+    }).catch(() => {});
+  }
+
+  return deal;
+}
+
+export async function createCrmDeal(
+  input: { userId: string; workspaceId?: string; leadId?: string | null; campaignId?: string | null; name?: string; title?: string; company?: string; contactEmail?: string; stage?: DealStage; value?: number | null; probability?: number; expectedCloseDate?: string | null; notes?: string | null }
+): Promise<Deal> {
+  return createDeal(input.userId, {
+    leadId: input.leadId ?? null,
+    campaignId: input.campaignId ?? null,
+    name: input.name ?? input.title ?? "Untitled deal",
+    company: input.company ?? "",
+    contactEmail: input.contactEmail ?? "",
+    stage: input.stage ?? "prospect",
+    value: input.value ?? null,
+    probability: input.probability ?? 0,
+    expectedCloseDate: input.expectedCloseDate ?? null,
+    notes: input.notes ?? null,
+  });
+}
+
+export async function updateCrmDealStage(
+  input: { userId: string; workspaceId?: string; dealId: string; stage: string }
+): Promise<Deal> {
+  return updateDealStage(input.userId, input.dealId, input.stage as DealStage);
+}
+
+function mapDeal(row: Record<string, unknown>): Deal {
+  return {
+    id: row.id as string,
+    userId: row.user_id as string,
+    leadId: (row.lead_id as string) ?? null,
+    campaignId: (row.campaign_id as string) ?? null,
+    name: row.name as string,
+    company: (row.company as string) ?? "",
+    contactEmail: (row.contact_email as string) ?? "",
+    stage: (row.stage as DealStage) ?? "prospect",
+    value: (row.value as number) ?? null,
+    probability: (row.probability as number) ?? 0,
+    expectedCloseDate: (row.expected_close_date as string) ?? null,
+    notes: (row.notes as string) ?? null,
+    createdAt: row.created_at as string,
+    updatedAt: (row.updated_at as string) ?? null,
+  };
 }

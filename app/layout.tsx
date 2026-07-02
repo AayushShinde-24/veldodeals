@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AppFrame } from "./app-frame";
+import { Providers } from "./providers";
 import { getCurrentProfile } from "@/lib/auth/server";
 import "./globals.css";
 
@@ -19,7 +20,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang="en">
       <body>
-        <AppFrame profile={profile}>{children}</AppFrame>
+        <Providers>
+          <AppFrame profile={profile}>{children}</AppFrame>
+        </Providers>
       </body>
     </html>
   );

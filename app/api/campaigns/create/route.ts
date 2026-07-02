@@ -4,6 +4,9 @@ import { ok, fail } from "@/lib/api/responses";
 import { createCampaign } from "@/lib/campaigns/service";
 import { getUserIdFromRequest, readJson } from "@/lib/security/request";
 import { createCampaignAndRun } from "@/src/lib/mvp/campaign-flow";
+import { applyPolicy } from "@/lib/security/rate-limit";
+import { assertWithinPlan, PlanLimitError } from "@/lib/billing/plan-limits";
+import { trackEvent } from "@/src/lib/analytics/events";
 
 const canonicalSchema = z.object({
   name: z.string().min(1).default("Untitled campaign"),
@@ -16,8 +19,12 @@ export async function POST(request: NextRequest) {
   try {
     const body = await readJson<Record<string, unknown>>(request);
     const userId = await getUserIdFromRequest(request, body);
+    if (!applyPolicy(userId, "campaign_create")) return fail("Too many campaigns created recently. Please wait a moment.", 429);
+    await assertWithinPlan(userId, "campaigns");
     if ("product_offer" in body || "target_niche" in body || "number_of_leads" in body) {
-      return ok(await createCampaignAndRun(userId, body), 201);
+      const result = await createCampaignAndRun(userId, body);
+      await trackEvent({ userId, event: "first_campaign", properties: { source: "campaign_flow" } });
+      return ok(result, 201);
     }
     const input = canonicalSchema.parse(body);
     const campaign = await createCampaign({
@@ -27,8 +34,10 @@ export async function POST(request: NextRequest) {
       offer: parseObject(input.offer),
       icp: parseObject(input.icp),
     });
+    await trackEvent({ userId, event: "first_campaign", entityId: campaign.id, properties: { source: "api" } });
     return ok(campaign, 201);
   } catch (error) {
+    if (error instanceof PlanLimitError) return fail(error.message, 402);
     return fail(error);
   }
 }

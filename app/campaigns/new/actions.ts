@@ -25,7 +25,7 @@ export async function createMvpCampaignAction(formData: FormData) {
     campaign_type: String(formData.get("campaign_type") ?? "sales"),
     hyper_personalization: formData.get("hyper_personalization") === "true",
   });
-  redirect(`/campaigns/${campaign.id}`);
+  redirect(`/campaigns/${campaign.campaignId}`);
 }
 
 function mergeCommaValues(primary: string, ...groups: FormDataEntryValue[][]) {

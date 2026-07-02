@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
     const body = await readJson<Record<string, unknown>>(request);
     const userId = await getUserIdFromRequest(request, body);
     const task = typeof body.task === "string" ? body.task : "Generate weekly growth plan";
-    return ok(await orchestrateGrowthTask(userId, task));
+    return ok(await orchestrateGrowthTask(userId, { task }));
   } catch (error) {
     return fail(error);
   }

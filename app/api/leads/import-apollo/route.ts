@@ -4,11 +4,13 @@ import { enqueueAgentTask } from "@/lib/agents/agent-helpers";
 import { runTask } from "@/lib/agents/agent-runner";
 import { getUserIdFromRequest, readJson } from "@/lib/security/request";
 import { fetchApolloPeople } from "@/lib/integrations/apollo";
+import { applyPolicy } from "@/lib/security/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await readJson<Record<string, unknown>>(request);
     const userId = await getUserIdFromRequest(request, body);
+    if (!applyPolicy(userId, "leads_search")) return fail("Too many lead search requests. Please wait a moment.", 429);
     const campaignId = String(body.campaign_id);
     const apolloQuery = body.apollo_query && typeof body.apollo_query === "object"
       ? body.apollo_query as Record<string, unknown>

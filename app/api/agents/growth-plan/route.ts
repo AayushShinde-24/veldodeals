@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await readJson<Record<string, unknown>>(request);
     const userId = await getUserIdFromRequest(request, body);
-    return ok(await generateGrowthPlan(userId));
+    return ok(await generateGrowthPlan(userId, body));
   } catch (error) {
     return fail(error);
   }

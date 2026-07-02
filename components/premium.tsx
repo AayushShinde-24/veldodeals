@@ -1,144 +1,278 @@
-import type { CSSProperties, ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { AlertCircle, ArrowRight, Inbox, Search } from "lucide-react";
-import { cn } from "@/lib/utils";
+export { StatusPill } from "@/components/status-pill";
 
-export type Tone = "blue" | "violet" | "cyan" | "green" | "orange" | "red" | "muted";
-
-export function PageShell({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn("content premium-content", className)}>{children}</div>;
+// Page-level shell — wraps all authenticated page content
+export function PageShell({ children, className }: { children: React.ReactNode; className?: string }) {
+  return <div className={`premium-content content${className ? ` ${className}` : ""}`}>{children}</div>;
 }
 
-export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?: string; title: string; description?: string; actions?: ReactNode }) {
+// Page header with eyebrow, title, description, and optional action buttons
+export function PageHeader({
+  eyebrow,
+  title,
+  description,
+  actions,
+  action,
+}: {
+  eyebrow?: string;
+  title: string;
+  description?: string;
+  actions?: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  const right = actions ?? action;
   return (
-    <header className="premium-page-head">
+    <div className="premium-page-head">
       <div>
-        {eyebrow ? <span className="premium-eyebrow">{eyebrow}</span> : null}
+        {eyebrow && <span className="premium-eyebrow">{eyebrow}</span>}
         <h1>{title}</h1>
-        {description ? <p>{description}</p> : null}
+        {description && <p>{description}</p>}
       </div>
-      {actions ? <div className="premium-actions">{actions}</div> : null}
-    </header>
+      {right && <div className="premium-actions">{right}</div>}
+    </div>
   );
 }
 
-export function GlassCard({ children, className, style }: { children: ReactNode; className?: string; style?: CSSProperties }) {
+// Card section header with optional description and actions
+export function SectionHeader({
+  title,
+  description,
+  actions,
+  action,
+}: {
+  title: string;
+  description?: string;
+  actions?: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  const right = actions ?? action;
   return (
-    <section className={cn("premium-card", className)} style={style}>
+    <div className="premium-section-head">
+      <div>
+        <h2 className="card-title">{title}</h2>
+        {description && <p>{description}</p>}
+      </div>
+      {right && <div>{right}</div>}
+    </div>
+  );
+}
+
+// Glassmorphic card wrapper
+export function GlassCard({
+  children,
+  glow,
+  className,
+  style,
+}: {
+  children: React.ReactNode;
+  glow?: boolean;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <div
+      className={`premium-card${glow ? " glow" : ""}${className ? ` ${className}` : ""}`}
+      style={style}
+    >
       {children}
-    </section>
+    </div>
   );
 }
 
-export function MetricCard({ icon: Icon, label, value, trend, tone = "blue" }: { icon?: LucideIcon; label: string; value: ReactNode; trend?: ReactNode; tone?: Tone }) {
+// Metric card with icon, label, value, and trend
+export function MetricCard({
+  icon: Icon,
+  label,
+  value,
+  trend,
+  tone,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string | number;
+  trend?: string;
+  tone?: "blue" | "cyan" | "green" | "violet" | "orange" | "red";
+}) {
+  const toneClass = tone ? `tone-${tone}` : "tone-blue";
   return (
-    <GlassCard className="premium-metric">
+    <div className="premium-card premium-metric">
       <div className="premium-metric-top">
         <div>
           <span>{label}</span>
           <strong>{value}</strong>
         </div>
-        {Icon ? (
-          <span className={cn("premium-icon", `tone-${tone}`)}>
-            <Icon size={20} />
-          </span>
-        ) : null}
+        <div className={`premium-icon ${toneClass}`}>
+          <Icon size={20} />
+        </div>
       </div>
-      {trend ? <p>{trend}</p> : null}
-      <Sparkline tone={tone} />
-    </GlassCard>
-  );
-}
-
-export function Badge({ children, tone = "muted", className }: { children: ReactNode; tone?: Tone; className?: string }) {
-  return <span className={cn("premium-badge", `tone-${tone}`, className)}>{children}</span>;
-}
-
-export function EmptyState({ icon: Icon = Inbox, title, description, action }: { icon?: LucideIcon; title: string; description: string; action?: ReactNode }) {
-  return (
-    <div className="premium-empty">
-      <span className="premium-empty-icon">
-        <Icon size={22} />
-      </span>
-      <h3>{title}</h3>
-      <p>{description}</p>
-      {action ? <div className="premium-actions">{action}</div> : null}
+      {trend && <p>{trend}</p>}
     </div>
   );
 }
 
-export function ErrorState({ message }: { message: string }) {
-  return (
-    <div className="premium-empty error">
-      <span className="premium-empty-icon">
-        <AlertCircle size={22} />
-      </span>
-      <h3>Could not load this view</h3>
-      <p>{message}</p>
-    </div>
-  );
-}
-
-export function SearchBox({ label = "Search anything..." }: { label?: string }) {
-  return (
-    <div className="premium-search">
-      <Search size={17} />
-      <span>{label}</span>
-      <kbd>Ctrl K</kbd>
-    </div>
-  );
-}
-
-export function DataTable({ headers, rows, empty }: { headers: string[]; rows: ReactNode[][]; empty: ReactNode }) {
-  if (!rows.length) return <>{empty}</>;
+// Data table with headers, rows, and optional empty state
+export function DataTable({
+  headers,
+  rows,
+  empty,
+}: {
+  headers: string[];
+  rows: (string | React.ReactNode)[][];
+  empty?: React.ReactNode;
+}) {
   return (
     <div className="table-wrap">
       <table className="table premium-table">
         <thead>
-          <tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr>
+          <tr>
+            {headers.map((h) => (
+              <th key={h}>{h}</th>
+            ))}
+          </tr>
         </thead>
         <tbody>
-          {rows.map((row, index) => (
-            <tr key={index}>{row.map((cell, cellIndex) => <td key={cellIndex}>{cell}</td>)}</tr>
-          ))}
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={headers.length}>{empty ?? <EmptyState title="No data" />}</td>
+            </tr>
+          ) : (
+            rows.map((row, i) => (
+              <tr key={i}>
+                {row.map((cell, j) => (
+                  <td key={j}>{cell}</td>
+                ))}
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
     </div>
   );
 }
 
-export function SectionHeader({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
+// Empty state placeholder with icon, title, description, and optional CTA
+export function EmptyState({
+  icon: Icon,
+  title,
+  description,
+  action,
+  error,
+}: {
+  icon?: LucideIcon;
+  title: string;
+  description?: string;
+  action?: React.ReactNode;
+  error?: boolean;
+}) {
   return (
-    <div className="premium-section-head">
-      <div>
-        <h2>{title}</h2>
-        {description ? <p>{description}</p> : null}
-      </div>
+    <div className={`premium-empty${error ? " error" : ""}`}>
+      {Icon && (
+        <div className="premium-empty-icon">
+          <Icon size={22} />
+        </div>
+      )}
+      <h3>{title}</h3>
+      {description && <p>{description}</p>}
       {action}
     </div>
   );
 }
 
-export function ProgressLine({ value }: { value: number }) {
-  const clamped = Math.max(0, Math.min(100, value));
-  return <span className="premium-progress"><span style={{ width: `${clamped}%` }} /></span>;
-}
-
-export function Bars({ values }: { values: number[] }) {
+// Bar chart — values are pixel heights
+export function Bars({ values, labels }: { values: number[]; labels?: string[] }) {
+  const max = Math.max(...values, 1);
   return (
     <div className="premium-bars">
-      {values.map((value, index) => <span key={`${value}-${index}`} style={{ height: `${Math.max(8, value)}%` }} />)}
+      {values.map((v, i) => (
+        <span
+          key={i}
+          style={{ height: `${Math.max(12, Math.round((v / max) * 190))}px` }}
+          title={labels?.[i] ?? String(v)}
+        />
+      ))}
     </div>
   );
 }
 
-export function PipelineMini({ items }: { items: Array<{ label: string; status: ReactNode }> }) {
+// Inline spinner
+export function Spinner({ size = 16 }: { size?: number }) {
   return (
-    <div className="premium-pipeline">
-      {items.map((item, index) => (
-        <div className="premium-pipeline-step" key={item.label}>
-          <span>{index + 1}</span>
-          <strong>{item.label}</strong>
+    <svg
+      className="spin"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.5}
+      strokeLinecap="round"
+    >
+      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+    </svg>
+  );
+}
+
+// Simple tag/badge
+export function Badge({
+  children,
+  tone = "blue",
+}: {
+  children: React.ReactNode;
+  tone?: "blue" | "green" | "violet" | "orange" | "red" | "cyan";
+}) {
+  return <span className={`premium-badge tone-${tone}`}>{children}</span>;
+}
+
+// Horizontal progress bar
+export function ProgressBar({ value, max = 100 }: { value: number; max?: number }) {
+  const pct = Math.min(100, Math.round((value / max) * 100));
+  return (
+    <span className="premium-progress">
+      <span style={{ width: `${pct}%` }} />
+    </span>
+  );
+}
+
+// Thin inline progress line (used inside log-line rows)
+export function ProgressLine({ value, max = 100 }: { value: number; max?: number }) {
+  const pct = Math.min(100, Math.round((value / max) * 100));
+  return (
+    <span className="premium-progress" style={{ height: 5 }}>
+      <span style={{ width: `${pct}%` }} />
+    </span>
+  );
+}
+
+// Error state (red variant of EmptyState)
+export function ErrorState({ message, icon: Icon }: { message: string; icon?: LucideIcon }) {
+  return (
+    <div className="premium-empty error" style={{ border: "1px solid rgba(239,68,68,0.25)", background: "rgba(239,68,68,0.06)" }}>
+      <div className="premium-empty-icon">
+        {Icon ? <Icon size={22} /> : (
+          <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round">
+            <circle cx={12} cy={12} r={10} />
+            <line x1={12} y1={8} x2={12} y2={12} />
+            <line x1={12} y1={16} x2={12.01} y2={16} />
+          </svg>
+        )}
+      </div>
+      <h3 style={{ color: "#fca5a5" }}>Something went wrong</h3>
+      <p>{message}</p>
+    </div>
+  );
+}
+
+// Mini pipeline list (used in dashboard campaign leader section)
+export function PipelineMini({
+  items,
+}: {
+  items: Array<{ label: string; status: React.ReactNode }>;
+}) {
+  return (
+    <div className="premium-list">
+      {items.map((item, i) => (
+        <div className="premium-list-row" key={i}>
+          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
           {item.status}
         </div>
       ))}
@@ -146,34 +280,35 @@ export function PipelineMini({ items }: { items: Array<{ label: string; status: 
   );
 }
 
-export function SettingsList({ items }: { items: Array<{ label: string; value: ReactNode }> }) {
+// Settings list — renders a vertical list of setting rows with label, description, and optional action
+export function SettingsList({
+  items,
+}: {
+  items: Array<{
+    label: string;
+    description?: string;
+    value?: React.ReactNode;
+    action?: React.ReactNode;
+  }>;
+}) {
   return (
     <div className="premium-list">
-      {items.map((item) => (
-        <div className="premium-list-row" key={item.label}>
-          <span>{item.label}</span>
-          <strong>{item.value}</strong>
+      {items.map((item, i) => (
+        <div
+          className="premium-list-row"
+          key={i}
+          style={{ alignItems: "flex-start", padding: "14px 20px", gap: 16 }}
+        >
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 500, fontSize: 14 }}>{item.label}</div>
+            {item.description && (
+              <div className="muted" style={{ fontSize: 13, marginTop: 2 }}>{item.description}</div>
+            )}
+          </div>
+          {item.value && <div style={{ fontSize: 13 }}>{item.value}</div>}
+          {item.action && <div style={{ flexShrink: 0 }}>{item.action}</div>}
         </div>
       ))}
     </div>
-  );
-}
-
-export function ArrowLink({ href, children }: { href: string; children: ReactNode }) {
-  return (
-    <a className="premium-arrow-link" href={href}>
-      {children}
-      <ArrowRight size={15} />
-    </a>
-  );
-}
-
-function Sparkline({ tone = "blue" }: { tone?: Tone }) {
-  const color = tone === "cyan" ? "#22d3ee" : tone === "violet" ? "#8b5cf6" : tone === "green" ? "#22c55e" : "#3b82f6";
-  return (
-    <svg className="premium-spark" viewBox="0 0 112 44" aria-hidden="true">
-      <path d="M2 35 C15 32 18 34 28 29 S43 25 50 26 61 16 67 22 78 34 84 12 98 31 110 8" fill="none" stroke={color} strokeWidth="2.4" />
-      <path d="M2 44 C22 41 42 38 56 32 S82 23 110 13 L110 44 Z" fill={color} opacity=".16" />
-    </svg>
   );
 }

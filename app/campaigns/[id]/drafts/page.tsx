@@ -10,7 +10,7 @@ export default async function CampaignDraftsPage({ params, searchParams }: { par
   const userId = await resolveUserId(searchParams);
   const data = await getCampaignView(userId, id);
   const drafts = data?.generatedEmails?.length ? data.generatedEmails : (data?.drafts ?? []);
-  const notice = query.error ? String(query.error) : query.queued ? "Safety queue prepared." : query.sent_queued ? "Queued send batch processed." : query.approved ? "Draft approved." : query.sent ? "Draft sent." : null;
+  const notice = query?.error ? String(query.error) : query?.queued ? "Safety queue prepared." : query?.sent_queued ? "Queued send batch processed." : query?.approved ? "Draft approved." : query?.sent ? "Draft sent." : null;
 
   return (
     <PageShell>
@@ -20,7 +20,7 @@ export default async function CampaignDraftsPage({ params, searchParams }: { par
         description="Drafts, safety status, queue state, and send outcomes are saved securely."
         actions={<div className="inline-actions"><a className="btn" href={`/campaigns/${id}`}>Overview</a><form action={queueCampaignAction}><input type="hidden" name="campaign_id" value={id} /><button className="btn" type="submit">Run safety queue</button></form><form action={sendQueuedCampaignAction}><input type="hidden" name="campaign_id" value={id} /><button className="btn primary" type="submit">Send queued</button></form></div>}
       />
-      {notice ? <div className={query.error ? "agent-error" : "status completed"}>{notice}</div> : null}
+      {notice ? <div className={query?.error ? "agent-error" : "status completed"}>{notice}</div> : null}
       <GlassCard>
         <SectionHeader title="Review queue" description="Drafts, scores, and approval state." action={<MailCheck size={18} color="var(--cyan)" />} />
         <DataTable
@@ -31,7 +31,7 @@ export default async function CampaignDraftsPage({ params, searchParams }: { par
             <StatusPill status={draft.status ?? draft.approval_status} />,
             <StatusPill status={draft.safety_status ?? "not_checked"} />,
             draft.personalization_reason ?? draft.cta ?? "",
-            draft.subject ? <div className="inline-actions"><form action={approveDraftAction}><input type="hidden" name="campaign_id" value={id} /><input type="hidden" name="generated_email_id" value={draft.id} /><input type="hidden" name="subject" value={draft.edited_subject ?? draft.subject} /><input type="hidden" name="body" value={draft.edited_body ?? draft.body} /><button className="btn" type="submit">Approve</button></form><form action={sendDraftAction}><input type="hidden" name="campaign_id" value={id} /><input type="hidden" name="generated_email_id" value={draft.id} /><button className="btn primary" type="submit">Send</button></form></div> : "",
+            draft.subject ? <div className="inline-actions"><form action={approveDraftAction}><input type="hidden" name="campaign_id" value={id} /><input type="hidden" name="generated_email_id" value={draft.id} /><input type="hidden" name="subject" value={draft.edited_subject ?? draft.subject} /><input type="hidden" name="body" value={draft.edited_body ?? draft.body ?? ""} /><button className="btn" type="submit">Approve</button></form><form action={sendDraftAction}><input type="hidden" name="campaign_id" value={id} /><input type="hidden" name="generated_email_id" value={draft.id} /><button className="btn primary" type="submit">Send</button></form></div> : "",
           ])}
           empty={<EmptyState title="No drafts yet" description="Email Writer will create drafts after personalization strategy passes safety checks." />}
         />

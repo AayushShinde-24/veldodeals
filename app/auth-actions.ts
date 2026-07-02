@@ -3,9 +3,13 @@
 import { redirect } from "next/navigation";
 import { createAuthClient } from "@/lib/auth/server";
 import { createServiceClient } from "@/lib/integrations/supabase";
+import { isDemoMode } from "@/lib/demo/mode";
 import { ensureDefaultWorkspace } from "@/src/lib/workspace/context";
+import { trackEvent } from "@/src/lib/analytics/events";
 
 export async function signInAction(formData: FormData) {
+  // Demo mode: no Supabase configured — skip auth and enter the demo workspace.
+  if (isDemoMode()) redirect("/dashboard");
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
   const supabase = await createAuthClient();
@@ -20,6 +24,8 @@ export async function signInAction(formData: FormData) {
 }
 
 export async function signUpAction(formData: FormData) {
+  // Demo mode: no Supabase configured — skip auth and start onboarding.
+  if (isDemoMode()) redirect("/onboarding");
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
   const fullName = String(formData.get("full_name") ?? "");
@@ -48,10 +54,13 @@ export async function signUpAction(formData: FormData) {
     full_name: fullName,
     company_name: companyName,
   });
-  redirect("/dashboard");
+  await trackEvent({ userId: signedIn.data.user.id, event: "user_signed_up", properties: { email } });
+  // New users start at onboarding; returning sessions (sign-in) go to dashboard
+  redirect("/onboarding");
 }
 
 export async function signOutAction() {
+  if (isDemoMode()) redirect("/login");
   const supabase = await createAuthClient();
   await supabase.auth.signOut();
   redirect("/login");
