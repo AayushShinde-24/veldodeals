@@ -19,7 +19,7 @@ import { pricingTiers } from "./pricing/pricing-data";
 export const metadata = {
   title: "Veldo — Autonomous Revenue OS",
   description:
-    "Veldo runs your B2B sales and fundraising end to end — a coordinated team of AI agents that research, score, personalize, draft, gate, send, and learn. Up to fully autonomous, on your terms.",
+    "Veldo runs your B2B sales, fundraising, and marketing end to end — a coordinated team of AI agents that research, score, personalize, draft, check, send, and learn. Up to fully autonomous, on your terms.",
 };
 
 // ---------------------------------------------------------------------------
@@ -54,14 +54,14 @@ function Hero() {
   return (
     <section className="landing-hero">
       <div className="landing-copy">
-        <span className="premium-eyebrow">Autonomous Revenue OS</span>
+        <span className="premium-eyebrow">Veldo Autonomous Revenue OS</span>
         <h1>
           Your AI sales team.<br />
           <span className="gradient-text">Always on. Up to fully autonomous.</span>
         </h1>
         <p className="landing-lede">
           Veldo runs B2B sales and fundraising end to end — a coordinated team of AI agents
-          researches your market, writes and scores every message, clears its own quality gates,
+          researches your market, writes and scores every message, clears its own quality checks,
           sends, and learns from every reply. You set how autonomous it runs.
         </p>
         <div className="landing-actions">
@@ -75,7 +75,7 @@ function Hero() {
         <div className="landing-trust">
           {[
             "Campaign Leader orchestrated",
-            "7 automatic quality gates",
+            "7 automatic quality checks",
             "Up to fully autonomous*",
             "Learns from every reply",
           ].map((item) => (
@@ -95,12 +95,12 @@ function Hero() {
         <div className="landing-signal" aria-label="Veldo campaign flow">
           <div className="landing-signal-head">
             <span>Campaign flow</span>
-            <strong>Target → Research → Write → Gate → Send → Learn</strong>
+            <strong>Target → Research → Write → Check → Send → Learn</strong>
           </div>
           {[
-            ["01", "Research", "Company, signals, and ICP fit on every account"],
+            ["01", "Research", "Company, signals, and ideal-customer fit on every account"],
             ["02", "Write", "Personalized message, auto-scored for reply quality"],
-            ["03", "Gate", "Automatic quality checks clear before anything sends"],
+            ["03", "Check", "Automatic quality checks clear before anything sends"],
             ["04", "Learn", "Replies and outcomes sharpen the next campaign"],
           ].map(([number, title, text]) => (
             <div className="landing-signal-row" key={title}>
@@ -185,7 +185,7 @@ function DashboardPreview() {
             </div>
             {/* Gates */}
             <div className="lp-gates">
-              {["ICP ✓", "Research ✓", "Score 88", "Verified ✓", "Gates ✓", "Autonomous"].map(
+              {["Fit ✓", "Research ✓", "Score 88", "Verified ✓", "Checks ✓", "Autonomous"].map(
                 (g) => (
                   <span key={g} className="lp-gate">
                     {g}
@@ -208,9 +208,9 @@ function MetricsBand() {
     <div className="landing-metrics-band">
       {[
         { value: "15+", label: "Specialist AI agents" },
-        { value: "7", label: "Automatic quality gates" },
+        { value: "7", label: "Automatic quality checks" },
         { value: "24/7", label: "Always-on outreach" },
-        { value: "2", label: "Pillars: sales & fundraising" },
+        { value: "3", label: "Pillars: sales, fundraising & marketing" },
       ].map((item) => (
         <div key={item.label} className="landing-metric-item">
           <strong>{item.value}</strong>
@@ -234,11 +234,11 @@ function Features() {
     {
       icon: Bot,
       title: "15+ specialist agents",
-      text: "Research, ICP scoring, personalization strategy, message writing, QA scoring, verification, reply classification, and more — each a focused expert, working in concert.",
+      text: "Research, ideal-customer fit scoring, personalization strategy, message writing, quality scoring, verification, reply reading, and more — each a focused expert, working in concert.",
     },
     {
       icon: ShieldCheck,
-      title: "Automatic quality gates",
+      title: "Automatic quality checks",
       text: "Every message clears built-in checks for fit, research depth, deliverability, and score before it can send — so quality is enforced by the system, not by hope.",
     },
     {
@@ -283,19 +283,19 @@ function HowItWorks() {
       n: "01",
       icon: Radar,
       title: "Define your market",
-      text: "Describe your ideal customer in plain language. Veldo builds and continuously enriches a live target list from premium data — company research, buying signals, and an ICP fit score on every account. No spreadsheets, no manual list-building.",
+      text: "Describe your ideal customer. Veldo builds and continuously enriches a live target list from premium data — company research, buying signals, and a fit score on every account.",
     },
     {
       n: "02",
       icon: Layers,
-      title: "Vel researches and writes",
+      title: "Veldo AI researches and writes",
       text: "The Campaign Leader runs each qualified account through research, strategy, and message writing. Every draft is personalized to real signals and scored for reply quality — with a transparent reason for every angle it chose.",
     },
     {
       n: "03",
       icon: ShieldCheck,
       title: "It sends, gated by your rules",
-      text: "Messages clear automatic quality gates and go out within the autonomy and guardrails you set — fully hands-free, or held for one-tap approval. Budgets, send limits, and a kill switch are always yours.",
+      text: "Messages clear automatic quality checks and go out within the autonomy and guardrails you set — fully hands-free, or held for one-tap approval. Budgets, send limits, and a kill switch are always yours.",
     },
     {
       n: "04",
@@ -346,8 +346,10 @@ function HowItWorks() {
 function tierFrom(tierId: string) {
   const tier = pricingTiers.find((t) => t.id === tierId);
   if (!tier) return { from: 0, lo: 0, hi: 0, openEnded: false };
-  const priced = tier.plans.filter((p) => p.priceUsd !== null) as { priceUsd: number }[];
-  const credited = tier.plans.filter((p) => p.credits !== null) as { credits: number }[];
+  // Free plans are excluded so the "from $X" and credit ranges reflect paid tiers.
+  const paid = tier.plans.filter((p) => !p.isFree);
+  const priced = paid.filter((p) => p.priceUsd !== null && p.priceUsd > 0) as { priceUsd: number }[];
+  const credited = paid.filter((p) => p.credits !== null) as { credits: number }[];
   const openEnded = tier.plans.some((p) => p.priceUsd === null);
   return {
     from: Math.min(...priced.map((p) => p.priceUsd)),
@@ -366,7 +368,7 @@ function Pricing() {
       popular: false,
       highlights: [
         "3 plans: Launch · Momentum · Velocity",
-        "All quality gates + reply intelligence",
+        "All quality checks + reply intelligence",
         "Up to fully autonomous*",
         "2.5% fee on closed deals",
       ],
@@ -464,8 +466,8 @@ function FinalCta() {
         <Zap size={36} className="landing-cta-icon" />
         <h2>Deploy your autonomous revenue team</h2>
         <p>
-          Describe your ICP and watch Veldo research, write, gate, and queue your first campaign in
-          minutes. Run it fully autonomous, or keep approval on — your call.
+          Describe your ideal customer and watch Veldo research, write, check, and queue your first
+          campaign in minutes. Run it fully autonomous, or keep approval on — your call.
         </p>
         <div className="landing-cta-btns">
           <a className="btn primary landing-cta-btn" href="/signup">
@@ -499,7 +501,7 @@ function Footer() {
             <BrandMark size={28} />
             <span>Veldo</span>
           </a>
-          <p>The Autonomous Revenue OS — research, write, gate, send, and learn across sales and fundraising.</p>
+          <p>The Autonomous Revenue OS — research, write, check, send, and learn across sales, fundraising, and marketing.</p>
         </div>
         <div className="landing-footer-links-group">
           <div className="landing-footer-col">

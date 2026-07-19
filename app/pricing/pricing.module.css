@@ -85,8 +85,37 @@
 .segActive { color: #ffffff; text-shadow: 0 1px 8px rgba(0, 0, 0, 0.4); }
 .tierSub { text-align: center; color: #9d93cf; font-size: 13.5px; margin: 8px 0 30px; min-height: 18px; }
 
+/* ---------------- current-plan panel (pinned left) ---------------- */
+.currentBar {
+  display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap;
+  margin: 4px 0 22px; padding: 16px 22px; border-radius: 18px;
+  background: linear-gradient(100deg, rgba(124, 58, 237, 0.22), rgba(59, 130, 246, 0.12));
+  border: 1px solid rgba(168, 140, 255, 0.4);
+  box-shadow: 0 14px 40px rgba(80, 40, 160, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  animation: currentGlow 4.5s ease-in-out infinite;
+}
+@keyframes currentGlow {
+  0%, 100% { box-shadow: 0 14px 40px rgba(80, 40, 160, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.08); }
+  50% { box-shadow: 0 16px 52px rgba(124, 58, 237, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.12); }
+}
+.currentInfo { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.currentLabel {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px;
+  font-size: 11px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase;
+  color: #fff; background: linear-gradient(90deg, #a855f7, #6366f1);
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.55);
+}
+.currentLabel svg { color: #ffe58a; }
+.currentName {
+  font-size: 22px; font-weight: 800; letter-spacing: -0.3px;
+  background: linear-gradient(90deg, #fff, #c9b8ff); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.currentCredits { display: inline-flex; align-items: center; gap: 6px; color: #d7ccff; font-size: 13.5px; font-weight: 700; }
+.currentCredits svg { color: #ffd76a; }
+.currentHint { color: #a99fd9; font-size: 12.5px; }
+
 /* ---------------- cards grid ---------------- */
-.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; perspective: 1600px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 22px; perspective: 1600px; }
 
 .card {
   position: relative; border-radius: 22px; padding: 28px 22px 24px;
@@ -109,6 +138,18 @@
 }
 @keyframes borderFlow { to { background-position: 300% 0; } }
 
+/* the plan the user is currently on — brightest, always glowing */
+.cardCurrent { border-color: rgba(255, 215, 120, 0.6); }
+.cardCurrent::after {
+  content: ""; position: absolute; inset: -1px; border-radius: 23px; padding: 1.6px;
+  background: linear-gradient(130deg, #ffd76a, #a855f7, #6366f1, #ffd76a);
+  background-size: 300% 300%;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: borderFlow 5s linear infinite; pointer-events: none;
+}
+.cardCurrent { box-shadow: 0 30px 70px rgba(0, 0, 0, 0.5), 0 0 44px rgba(168, 120, 255, 0.32); }
+
 @keyframes fadeUp { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: translateY(0); } }
 
 .badge {
@@ -116,6 +157,17 @@
   padding: 5px 11px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.3px;
   color: #fff; background: linear-gradient(90deg, #a855f7, #6366f1);
   box-shadow: 0 6px 16px rgba(124, 58, 237, 0.55);
+}
+.badgeCurrent {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: linear-gradient(90deg, #f59e0b, #a855f7);
+  box-shadow: 0 6px 18px rgba(245, 158, 11, 0.5);
+  animation: pulseBadge 2.6s ease-in-out infinite;
+}
+.badgeCurrent svg { color: #fff; }
+@keyframes pulseBadge {
+  0%, 100% { box-shadow: 0 6px 18px rgba(245, 158, 11, 0.45); }
+  50% { box-shadow: 0 8px 26px rgba(245, 158, 11, 0.75); }
 }
 
 .gemWrap { display: flex; justify-content: center; margin-bottom: 8px; }
@@ -133,13 +185,90 @@
 .priceSuffix { color: #9d93cf; font-size: 14px; font-weight: 600; }
 .priceCustom { font-size: 30px; font-weight: 800; background: linear-gradient(90deg, #fff, #c9b8ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
 
+/* per-card monthly/annual cylindrical toggle (Solo & Team) + Save 17% tag */
+.billRow { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 8px auto 0; }
+.saveTag {
+  padding: 3px 9px; border-radius: 999px; font-size: 10.5px; font-weight: 800; letter-spacing: 0.3px;
+  color: #08301f; background: linear-gradient(90deg, #86efac, #22d3ee);
+  box-shadow: 0 4px 12px rgba(34, 211, 172, 0.4);
+  animation: pulseBadge 2.8s ease-in-out infinite;
+}
+.billToggle {
+  position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+  width: 150px; padding: 3px; border-radius: 999px;
+  background: linear-gradient(180deg, rgba(34, 25, 64, 0.95), rgba(15, 11, 32, 0.95));
+  border: 1px solid rgba(168, 140, 255, 0.3);
+  box-shadow: inset 0 1px 5px rgba(0, 0, 0, 0.5);
+}
+.billThumb {
+  position: absolute; top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / 2);
+  border-radius: 999px; background: linear-gradient(180deg, #9b6cff 0%, #7c3aed 60%, #5b21b6 100%);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  transition: transform 0.4s cubic-bezier(0.34, 1.4, 0.5, 1);
+}
+.billBtn {
+  position: relative; z-index: 2; padding: 6px 4px; border: none; background: none; cursor: pointer;
+  color: #b6abe0; font-weight: 700; font-size: 12px; border-radius: 999px; transition: color 0.3s ease;
+}
+.billBtn:hover { color: #ddd4ff; }
+.billActive { color: #fff; }
+.billSpacer { height: 8px; }
+.annualNote {
+  text-align: center; font-size: 11px; font-weight: 700; letter-spacing: 0.3px; margin-top: 6px;
+  color: #a99fd9;
+}
+
+/* ---- hyper-personalization add-on selector (all tiers except Solo) ---- */
+.hyperPicker { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 4px; }
+.hyperOpt {
+  position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  padding: 9px 11px; border-radius: 13px; cursor: pointer; text-align: left;
+  background: rgba(124, 58, 237, 0.1); border: 1.5px solid rgba(168, 140, 255, 0.22);
+  transition: border-color 0.25s ease, background 0.25s ease, box-shadow 0.3s ease, transform 0.2s ease;
+}
+.hyperOpt:hover { transform: translateY(-1px); border-color: rgba(168, 140, 255, 0.5); }
+.hyperOptName { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 800; color: #d7cffb; }
+.hyperOptName svg { color: #c4b5fd; }
+.hyperOptCost { font-size: 11px; font-weight: 700; color: #9d93cf; }
+.hyperCheck { position: absolute; top: 8px; right: 8px; color: #fff; }
+/* selected state — unmistakable */
+.hyperOptOn {
+  border-color: rgba(168, 140, 255, 0.85);
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.3), rgba(99, 102, 241, 0.22));
+  box-shadow: 0 0 0 1px rgba(168, 140, 255, 0.6), 0 8px 22px rgba(124, 58, 237, 0.4);
+}
+.hyperOptPremium .hyperOptName { color: #ffc9e6; }
+.hyperOptPremium .hyperOptName svg { color: #ffd76a; }
+.hyperOptPremium.hyperOptOn {
+  border-color: rgba(236, 72, 153, 0.8);
+  background: linear-gradient(135deg, rgba(236, 72, 153, 0.3), rgba(168, 85, 247, 0.22));
+  box-shadow: 0 0 0 1px rgba(236, 72, 153, 0.6), 0 8px 24px rgba(236, 72, 153, 0.45);
+}
+.hyperOptPremium.hyperOptOn .hyperOptCost { color: #ffd76a; }
+
 .creditsChip {
   display: flex; align-items: center; justify-content: center; gap: 7px;
-  width: fit-content; margin: 14px auto 18px; padding: 8px 15px; border-radius: 12px;
+  width: fit-content; margin: 14px auto 10px; padding: 8px 15px; border-radius: 12px;
   font-weight: 700; font-size: 14px; color: #e2d8ff;
   background: rgba(124, 58, 237, 0.16); border: 1px solid rgba(168, 140, 255, 0.32);
 }
 .creditsChip svg { color: #c4b5fd; }
+
+/* hyper-personalization — its own glowing block, directly under the credits */
+.hyperChip {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: fit-content; margin: 0 auto 18px; padding: 6px 13px; border-radius: 999px;
+  font-weight: 700; font-size: 12px; letter-spacing: 0.2px; color: #fff;
+  background: linear-gradient(95deg, rgba(236, 72, 153, 0.28), rgba(168, 85, 247, 0.28));
+  border: 1px solid rgba(236, 72, 153, 0.45);
+  box-shadow: 0 4px 16px rgba(236, 72, 153, 0.3);
+  animation: hyperGlow 3.4s ease-in-out infinite;
+}
+.hyperChip svg { color: #ffd76a; }
+@keyframes hyperGlow {
+  0%, 100% { box-shadow: 0 4px 16px rgba(236, 72, 153, 0.28); }
+  50% { box-shadow: 0 6px 22px rgba(236, 72, 153, 0.55); }
+}
 
 .cta {
   display: flex; align-items: center; justify-content: center; gap: 8px;
@@ -155,6 +284,11 @@
   box-shadow: 0 12px 28px rgba(99, 102, 241, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 .ctaPrimary:hover { box-shadow: 0 18px 40px rgba(124, 58, 237, 0.6); background: linear-gradient(100deg, #9b6cff, #7c79ff 55%, #4f9bff); }
+.ctaCurrent {
+  color: #fff; border: 1px solid rgba(255, 215, 120, 0.5);
+  background: linear-gradient(100deg, rgba(245, 158, 11, 0.24), rgba(168, 85, 247, 0.22));
+}
+.ctaCurrent:hover { background: linear-gradient(100deg, rgba(245, 158, 11, 0.36), rgba(168, 85, 247, 0.32)); }
 
 .seat { text-align: center; color: #8d83bd; font-size: 12px; margin-bottom: 12px; }
 
@@ -176,37 +310,126 @@
   background: linear-gradient(120deg, rgba(124, 58, 237, 0.18), rgba(59, 130, 246, 0.12));
   border: 1px solid rgba(168, 140, 255, 0.28);
   box-shadow: 0 26px 60px rgba(60, 30, 130, 0.4);
-  display: grid; grid-template-columns: 1.4fr 1fr; gap: 26px; align-items: center;
+  display: grid; grid-template-columns: 1fr; gap: 20px;
 }
 .addon::before {
   content: ""; position: absolute; right: -60px; top: -60px; width: 260px; height: 260px; border-radius: 50%;
   background: radial-gradient(circle, rgba(168, 85, 247, 0.4), transparent 70%); filter: blur(20px); pointer-events: none;
 }
-.addonTitle { font-size: 22px; font-weight: 800; margin-bottom: 8px;
+.addonHead { position: relative; z-index: 1; }
+.addonTitle { display: flex; align-items: center; gap: 9px; font-size: 22px; font-weight: 800; margin-bottom: 8px;
   background: linear-gradient(90deg, #fff, #c4b5fd); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.addonText { color: #c3b9e8; font-size: 14px; line-height: 1.55; max-width: 460px; }
-.addonRange { display: flex; align-items: baseline; gap: 8px; margin-top: 6px; }
-.addonRange b { font-size: 18px; color: #efe9ff; }
+.addonTitle svg { color: #c4b5fd; }
+.addonText { color: #c3b9e8; font-size: 14px; line-height: 1.6; max-width: 640px; }
+.addonText b { color: #fff; }
 
-.addonStats { display: grid; gap: 12px; position: relative; z-index: 1; }
-.addonStat {
-  display: flex; justify-content: space-between; align-items: center; gap: 12px;
-  padding: 14px 16px; border-radius: 14px;
-  background: rgba(10, 8, 22, 0.6); border: 1px solid rgba(168, 140, 255, 0.22);
+/* ---- stacked, super-glowing top-up cards (normal OR hyper) ---- */
+.topupStack { position: relative; z-index: 1; display: flex; flex-direction: column; gap: 14px; }
+.topupCard {
+  position: relative; display: grid; grid-template-columns: 200px 1fr; align-items: center; gap: 20px;
+  padding: 18px 22px; border-radius: 18px;
+  background: linear-gradient(120deg, rgba(20, 15, 42, 0.9), rgba(12, 9, 26, 0.92));
+  border: 1px solid rgba(168, 140, 255, 0.3);
+  /* escalating glow — the higher the top-up (--i), the more premium it reads */
+  box-shadow: 0 12px 34px rgba(60, 30, 130, 0.35),
+    0 0 calc(6px + var(--i, 0) * 6px) rgba(139, 92, 246, calc(0.14 + var(--i, 0) * 0.045));
+  transition: transform 0.22s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+  animation: fadeUp 0.6s both;
 }
-.addonStat span { color: #b3a8dc; font-size: 13px; }
-.addonStat strong { font-size: 18px; color: #fff;
-  background: linear-gradient(90deg, #c4b5fd, #93c5fd); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.topupCard:hover { transform: translateY(-4px); border-color: rgba(168, 140, 255, 0.7); }
+/* animated glowing gradient border — intensifies with the tier */
+.topupCard::before {
+  content: ""; position: absolute; inset: -1px; border-radius: 19px; padding: 1.4px;
+  background: linear-gradient(120deg, #a855f7, #6366f1, #3b82f6, #ec4899, #a855f7);
+  background-size: 300% 300%;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  opacity: calc(0.4 + var(--i, 0) * 0.055); animation: borderFlow 7s linear infinite; pointer-events: none;
+}
+.topupBest { border-color: rgba(255, 215, 120, 0.6); }
+.topupBest::before {
+  background: linear-gradient(120deg, #ffd76a, #ec4899, #a855f7, #ffd76a);
+  background-size: 300% 300%; opacity: 0.85;
+}
+.topupBadge {
+  position: absolute; top: -11px; left: 22px; z-index: 2;
+  display: inline-flex; align-items: center; gap: 5px; padding: 4px 11px; border-radius: 999px;
+  font-size: 11px; font-weight: 800; color: #201400;
+  background: linear-gradient(90deg, #ffd76a, #f59e0b); box-shadow: 0 6px 16px rgba(245, 158, 11, 0.55);
+}
+.topupBadge svg { color: #201400; }
+
+.topupPriceCol { display: flex; flex-direction: column; }
+.topupPrice {
+  font-size: 30px; font-weight: 900; letter-spacing: -0.6px;
+  background: linear-gradient(90deg, #fff, #c9b8ff); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.topupPer { color: #9d93cf; font-size: 12.5px; font-weight: 600; }
+
+.topupChoice { display: grid; grid-template-columns: 1fr auto 1fr; align-items: stretch; gap: 12px; }
+.topupOption {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  padding: 12px 10px; border-radius: 14px; cursor: pointer; font: inherit;
+  background: rgba(124, 58, 237, 0.12); border: 1.5px solid rgba(168, 140, 255, 0.24);
+  transition: transform 0.2s ease, box-shadow 0.3s ease, border-color 0.3s ease, background 0.3s ease;
+}
+.topupOption:hover { transform: translateY(-2px); border-color: rgba(168, 140, 255, 0.55); }
+.topupCheck {
+  position: absolute; top: 7px; right: 8px; display: grid; place-items: center;
+  width: 17px; height: 17px; border-radius: 50%; color: #fff;
+  background: linear-gradient(135deg, #a855f7, #6366f1); box-shadow: 0 2px 8px rgba(124, 58, 237, 0.6);
+}
+.topupOptLabel { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase; color: #b6abe0; }
+.topupOptLabel svg { color: #c4b5fd; }
+.topupOptSub { font-size: 11px; color: #9d93cf; }
+.topupNormalNum { font-size: 24px; font-weight: 900; letter-spacing: -0.5px; color: #e8e2ff; }
+
+/* selected state — unmistakable ring + lift */
+.topupOptionOn {
+  border-color: rgba(168, 140, 255, 0.9);
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.32), rgba(99, 102, 241, 0.22));
+  box-shadow: 0 0 0 1.5px rgba(168, 140, 255, 0.7), 0 10px 26px rgba(124, 58, 237, 0.45);
+}
+
+/* the hyper option is the hero: gold/pink gradient + steady glow */
+.topupOptionHyper {
+  background: linear-gradient(120deg, rgba(236, 72, 153, 0.2), rgba(168, 85, 247, 0.18));
+  border-color: rgba(236, 72, 153, 0.5);
+  box-shadow: 0 6px 22px rgba(236, 72, 153, 0.28);
+  animation: hyperGlow 3.4s ease-in-out infinite;
+}
+.topupOptionHyper.topupOptionOn {
+  border-color: rgba(236, 72, 153, 0.95);
+  box-shadow: 0 0 0 1.5px rgba(236, 72, 153, 0.8), 0 10px 28px rgba(236, 72, 153, 0.5);
+}
+.topupOptionHyper .topupCheck { background: linear-gradient(135deg, #ec4899, #f59e0b); }
+.topupOptionHyper .topupOptLabel { color: #ffb3de; }
+.topupOptionHyper .topupOptLabel svg { color: #ffd76a; }
+.topupHyperNum {
+  font-size: 26px; font-weight: 900; letter-spacing: -0.5px;
+  background: linear-gradient(92deg, #ff9ecb, #ffd76a); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 10px rgba(236, 72, 153, 0.5));
+}
+.topupOr {
+  align-self: center; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px;
+  color: #8d83bd; padding: 0 2px;
+}
 
 .footNote { text-align: center; color: #8478ab; font-size: 12.5px; margin-top: 26px; }
 
 /* ---------------- responsive ---------------- */
 @media (max-width: 900px) {
   .grid { grid-template-columns: 1fr; max-width: 440px; margin: 0 auto; }
-  .addon { grid-template-columns: 1fr; }
   .toggle { min-width: 320px; }
+}
+@media (max-width: 620px) {
+  .topupCard { grid-template-columns: 1fr; gap: 12px; text-align: center; }
+  .topupPriceCol { align-items: center; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .orb, .gem, .card, .cardHighlight::before, .thumb { animation: none !important; transition: none !important; }
+  .orb, .gem, .card, .cardHighlight::before, .cardCurrent::after, .currentBar, .badgeCurrent,
+  .hyperChip, .topupCard, .topupCard::before, .topupOptionHyper, .thumb {
+    animation: none !important; transition: none !important;
+  }
 }

@@ -1,7 +1,16 @@
 import { createServiceClient } from "@/lib/integrations/supabase";
 
-// Veldo takes a percentage of every deal closed through it — on EVERY tier, free or
-// paid (see memory: veldo-pricing-model). Kept configurable via env for flexibility.
+// Veldo takes a percentage of every SALES deal closed through it — on EVERY tier,
+// free or paid. Kept configurable via env for flexibility.
+//
+// Money flow: the customer's payment for the deal itself settles directly on the
+// user's own rails (their Stripe/bank/invoice — it never touches Veldo's Dodo
+// account). Veldo only records the closed deal value here and collects the fee
+// from the USER via their stored Dodo on-demand mandate (small fees) or a Dodo
+// payment link (large fees).
+//
+// Fundraising takes NO cash cut — raises are monetized through doubled credit
+// consumption instead (FUNDRAISING_CREDIT_MULTIPLIER in lib/revenue-os/pricing.ts).
 export const DEFAULT_DEAL_FEE_PCT = Number(process.env.VELDO_DEAL_FEE_PCT ?? 2.5);
 
 export type DealType = "sales" | "fundraising" | "distribution";
@@ -35,7 +44,10 @@ export interface DealFee {
  * a won/closed stage in any pillar. The fee row feeds invoicing (Phase 4).
  */
 export async function recordDealClose(input: RecordDealCloseInput): Promise<DealFee> {
-  const feePct = input.feePct ?? DEFAULT_DEAL_FEE_PCT;
+  // Fundraising is fee-free: record the close for the audit trail, but waive the
+  // fee entirely (monetized via 2x credit consumption instead).
+  const isFundraising = input.dealType === "fundraising";
+  const feePct = isFundraising ? 0 : input.feePct ?? DEFAULT_DEAL_FEE_PCT;
   const feeAmount = computeDealFee(input.dealValue, feePct);
   const db = createServiceClient();
 
@@ -50,7 +62,7 @@ export async function recordDealClose(input: RecordDealCloseInput): Promise<Deal
       fee_pct: feePct,
       fee_amount: feeAmount,
       currency: input.currency ?? "usd",
-      status: "pending",
+      status: isFundraising ? "waived" : "pending",
       created_at: new Date().toISOString(),
     })
     .select("id, deal_value, fee_pct, fee_amount, status")

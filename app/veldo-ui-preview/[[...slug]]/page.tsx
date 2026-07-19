@@ -117,8 +117,6 @@ function renderScreen(screen: string) {
       return <InboxPage />;
     case "analytics":
       return <AnalyticsPage />;
-    case "api-keys":
-      return <ApiKeysPage />;
     default:
       return <DashboardPage />;
   }
@@ -126,7 +124,7 @@ function renderScreen(screen: string) {
 
 function activeFromScreen(screen: string) {
   if (screen.startsWith("leads")) return "leads";
-  if (["workspace", "team", "sending-accounts", "integrations", "security", "api-keys"].includes(screen)) return "workspace";
+  if (["workspace", "team", "sending-accounts", "integrations", "security"].includes(screen)) return "workspace";
   return screen;
 }
 
@@ -578,18 +576,6 @@ function ProfilePage() {
 
 export function ProfileCard() {
   return <GlassCard><div className="vp-row" style={{ justifyContent: "flex-start", alignItems: "start", gap: 26 }}><span className="vp-mini-avatar photo" style={{ width: 114, height: 114 }} /><div><h2 style={{ fontSize: 21, margin: 0 }}>Andrew Carter <Badge tone="violet">Pro</Badge></h2><p>Growth Marketing Manager</p><p>Acme Corp</p><div className="vp-list" style={{ marginTop: 18 }}><span>Email andrew.carter@acmecorp.com <Badge tone="green">Verified</Badge></span><span>Phone +1 (415) 555-9876 <Badge tone="green">Verified</Badge></span><span>Timezone America/New_York</span><span>Member since Feb 18, 2024</span></div></div></div><SettingsCard title="About you" items={["Growth marketer with a passion for data-driven strategies, automation, and building meaningful customer relationships."]} /></GlassCard>;
-}
-
-function ApiKeysPage() {
-  const rows = [["Production Key", "Production", "Read / Write", "2 minutes ago", "12,458 req", "Active"], ["Automation Service", "Production", "Read / Write", "1 hour ago", "8,942 req", "Active"], ["Analytics Exporter", "Staging", "Read Only", "1 day ago", "1,230 req", "Active"], ["Dev Sandbox", "Development", "Read / Write", "3 days ago", "542 req", "Inactive"]];
-  return (
-    <>
-      <Header title="API Keys" subtitle="Manage API access, webhooks, and connected integrations." actions={<><span className="vp-btn">API Documentation</span><GradientButton><Plus size={16} /> Create API Key</GradientButton></>} />
-      <GlassCard><h2 className="vp-card-title">Your API Keys</h2><Table headers={["Name", "Environment", "Permissions", "Last Used", "Usage (30D)", "Status"]} rows={rows.map((r) => [r[0], <Badge tone={r[1] === "Staging" ? "violet" : r[1] === "Development" ? "blue" : "green"}>{r[1]}</Badge>, r[2], r[3], r[4], <Badge tone={r[5] === "Active" ? "green" : "blue"}>{r[5]}</Badge>])} /></GlassCard>
-      <div className="vp-grid cols2" style={{ marginTop: 14 }}><SettingsCard title="Webhook Endpoints" items={["https://hooks.acme.com/veldo/events Primary", "https://api.acme.com/integrations/veldo Healthy"]} /><SettingsCard title="Connected Providers" items={["Slack Connected", "Zapier Connected", "Make Connected"]} /></div>
-      <div className="vp-grid cols3" style={{ marginTop: 14 }}><SettingsCard title="API Usage (30 Days)" items={["Total Requests 22,458", "Rate Limit 100,000/mo", "Remaining 77,542"]} /><SettingsCard title="Rate Limits" items={["Per Minute 600 requests", "Per Hour 10,000 requests", "Per Day 200,000 requests"]} /><GlassCard className="glow"><h2 style={{ color: "#fb7185" }}>Danger Zone</h2><div className="vp-list" style={{ marginTop: 18 }}><span>Revoke All Keys</span><span>Delete All Webhooks</span></div></GlassCard></div>
-    </>
-  );
 }
 
 function LandingPage() {

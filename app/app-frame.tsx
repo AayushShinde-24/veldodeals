@@ -2,53 +2,106 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  Activity,
   BarChart3,
   Bell,
   Bot,
   Building2,
-  Database,
-  FileText,
+  ChevronDown,
   Handshake,
-  Inbox,
   LayoutDashboard,
-  ListChecks,
-  Mail,
-  Megaphone,
   Menu,
-  PhoneCall,
   Radio,
   Search,
   Settings,
   Sparkles,
-  Target,
+  type LucideIcon,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { BrandMark } from "@/components/brand-mark";
+import { VelDock } from "@/components/vel-dock";
 import type { AuthProfile } from "@/lib/auth/server";
 
-// Core workflow only. Everything account/config-related now lives under Settings.
-const nav = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+// Structure: Dashboard → three pillar groups → global tabs → Settings group.
+// Pillar groups expand/collapse in place; opening one closes the others.
+type NavChild = { href: string; label: string };
+type NavGroup = {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  accent: string;
+  children: NavChild[];
+};
+
+const navGroups: NavGroup[] = [
+  {
+    key: "sales",
+    label: "Sales",
+    icon: Handshake,
+    accent: "#3b82f6",
+    children: [
+      { href: "/sales", label: "Overview" },
+      { href: "/sales/campaigns", label: "Campaigns" },
+      { href: "/crm", label: "Pipeline" },
+      { href: "/inbox", label: "Conversations" },
+      { href: "/sales/meetings", label: "Meetings" },
+      { href: "/sales/settings", label: "Settings" },
+    ],
+  },
+  {
+    key: "marketing",
+    label: "Marketing",
+    icon: Radio,
+    accent: "#8b5cf6",
+    children: [
+      { href: "/marketing", label: "Overview" },
+      { href: "/marketing/campaigns", label: "Campaigns" },
+      { href: "/marketing/studio", label: "Studio" },
+      { href: "/marketing/planner", label: "Planner" },
+      { href: "/marketing/channels", label: "Channels" },
+      { href: "/marketing/settings", label: "Settings" },
+    ],
+  },
+  {
+    key: "fundraising",
+    label: "Fundraising",
+    icon: Sparkles,
+    accent: "#f6c453",
+    children: [
+      { href: "/fundraising", label: "Raise Dashboard" },
+      { href: "/fundraising/setup", label: "Raise Setup" },
+      { href: "/fundraising/investors", label: "Investors" },
+      { href: "/fundraising/outreach", label: "Outreach" },
+      { href: "/fundraising/close", label: "Meetings & Close" },
+      { href: "/fundraising/settings", label: "Settings" },
+    ],
+  },
+];
+
+const globalNav = [
   { href: "/agent", label: "Vel AI", icon: Bot },
-  { href: "/campaigns", label: "Campaigns", icon: Target },
-  { href: "/campaigns/new", label: "Builder", icon: FileText },
-  { href: "/leads", label: "Leads", icon: Database },
-  { href: "/lead-finder", label: "Lead finder", icon: Search },
-  { href: "/personalization", label: "Personalization", icon: Mail },
-  { href: "/inbox", label: "Replies", icon: Inbox },
-  { href: "/calls", label: "Calls", icon: PhoneCall },
-  { href: "/crm", label: "CRM deals", icon: Handshake },
-  { href: "/fundraising", label: "Fundraising", icon: Megaphone },
-  { href: "/marketing", label: "Marketing", icon: Radio },
   { href: "/agents", label: "Agents", icon: Bot },
-  { href: "/agents/tasks", label: "Tasks", icon: ListChecks },
-  { href: "/agents/logs", label: "Logs", icon: Activity },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
 ];
 
-// Routes that should highlight the single "Settings" entry.
-const settingsRoots = ["/settings", "/billing", "/integrations", "/profile", "/workspace", "/team", "/sending-accounts", "/security"];
+const settingsGroup: NavGroup = {
+  key: "settings",
+  label: "Settings",
+  icon: Settings,
+  accent: "#94a3b8",
+  children: [
+    { href: "/profile", label: "Profile" },
+    { href: "/workspace", label: "Workspace" },
+    { href: "/team", label: "Team & Seats" },
+    { href: "/settings/usage", label: "Usage" },
+    { href: "/settings/billing", label: "Billing & Plans" },
+    { href: "/settings/integrations", label: "Connections" },
+    { href: "/settings/data", label: "Data & Memory" },
+    { href: "/settings/compliance", label: "Security & Compliance" },
+    { href: "/settings/notifications", label: "Notifications" },
+  ],
+};
+
+const allGroups = [...navGroups, settingsGroup];
 
 const publicRoutes = new Set([
   "/",
@@ -63,11 +116,39 @@ const publicRoutes = new Set([
   "/pricing",
 ]);
 
+function matchesHref(pathname: string | null, href: string) {
+  return pathname === href || Boolean(pathname?.startsWith(`${href}/`));
+}
+
+// Longest-prefix match across every leaf link, so "/marketing" is not
+// highlighted while the user is on "/marketing/studio".
+function bestMatchHref(pathname: string | null) {
+  const leaves = [
+    "/dashboard",
+    ...globalNav.map((item) => item.href),
+    ...allGroups.flatMap((group) => group.children.map((child) => child.href)),
+  ];
+  let best = "";
+  for (const href of leaves) {
+    if (matchesHref(pathname, href) && href.length > best.length) best = href;
+  }
+  return best;
+}
+
+function groupForPath(pathname: string | null) {
+  if (pathname?.startsWith("/settings")) return "settings";
+  for (const group of allGroups) {
+    if (group.children.some((child) => matchesHref(pathname, child.href))) return group.key;
+  }
+  return null;
+}
+
 export function AppFrame({ children, profile }: { children: React.ReactNode; profile: AuthProfile | null }) {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
   const backdropRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -75,9 +156,11 @@ export function AppFrame({ children, profile }: { children: React.ReactNode; pro
     setCollapsed(stored ? stored === "true" : window.matchMedia("(max-width: 768px)").matches);
   }, []);
 
-  // Close mobile sidebar on route change
+  // Auto-expand the group that owns the current page; close mobile sidebar.
   useEffect(() => {
     setMobileOpen(false);
+    const owner = groupForPath(pathname);
+    if (owner) setOpenGroup(owner);
   }, [pathname]);
 
   // Cmd+K / Ctrl+K → navigate to Vel AI
@@ -92,7 +175,11 @@ export function AppFrame({ children, profile }: { children: React.ReactNode; pro
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [router]);
 
-  if (pathname?.startsWith("/veldo-ui-preview") || publicRoutes.has(pathname ?? "")) {
+  if (
+    pathname?.startsWith("/veldo-ui-preview") ||
+    pathname?.startsWith("/agent/embed") ||
+    publicRoutes.has(pathname ?? "")
+  ) {
     return <>{children}</>;
   }
 
@@ -106,10 +193,7 @@ export function AppFrame({ children, profile }: { children: React.ReactNode; pro
       .map((part) => part[0]?.toUpperCase())
       .join("") || "V";
 
-  const activeHref = (href: string) =>
-    pathname === href || (href !== "/" && href !== "/campaigns" && pathname?.startsWith(`${href}/`))
-      ? true
-      : pathname === href;
+  const activeLeaf = bestMatchHref(pathname);
 
   function toggleSidebar() {
     const isMobile = window.matchMedia("(max-width: 768px)").matches;
@@ -128,6 +212,15 @@ export function AppFrame({ children, profile }: { children: React.ReactNode; pro
     setMobileOpen(false);
   }
 
+  function toggleGroup(group: NavGroup) {
+    // Collapsed rail cannot show children — jump to the group's first tab.
+    if (collapsed && !mobileOpen) {
+      router.push(group.children[0].href);
+      return;
+    }
+    setOpenGroup((current) => (current === group.key ? null : group.key));
+  }
+
   const sidebarClass = [
     "sidebar",
     collapsed ? "sidebar-collapsed" : "",
@@ -135,6 +228,45 @@ export function AppFrame({ children, profile }: { children: React.ReactNode; pro
   ]
     .filter(Boolean)
     .join(" ");
+
+  function renderGroup(group: NavGroup) {
+    const Icon = group.icon;
+    const isOpen = openGroup === group.key;
+    const ownsActive = group.children.some((child) => child.href === activeLeaf);
+    return (
+      <div
+        key={group.key}
+        className={`nav-group${isOpen ? " open" : ""}`}
+        style={{ "--pillar": group.accent } as React.CSSProperties}
+      >
+        <button
+          type="button"
+          className={`nav-group-head${ownsActive ? " active" : ""}`}
+          onClick={() => toggleGroup(group)}
+          aria-expanded={isOpen}
+          title={group.label}
+        >
+          <Icon size={16} />
+          <span>{group.label}</span>
+          <ChevronDown size={14} className="nav-chevron" aria-hidden="true" />
+        </button>
+        <div className="nav-sub">
+          <div className="nav-sub-inner">
+            {group.children.map((child) => (
+              <a
+                href={child.href}
+                key={child.href}
+                className={child.href === activeLeaf ? "active" : undefined}
+                title={`${group.label} · ${child.label}`}
+              >
+                <span>{child.label}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`app${collapsed ? " sidebar-collapsed" : ""}`}>
@@ -168,14 +300,26 @@ export function AppFrame({ children, profile }: { children: React.ReactNode; pro
         </div>
 
         <nav className="nav" aria-label="Main navigation">
-          {nav.map((item) => {
+          <a
+            href="/dashboard"
+            className={activeLeaf === "/dashboard" ? "active" : undefined}
+            title="Dashboard"
+          >
+            <LayoutDashboard size={16} />
+            <span>Dashboard</span>
+          </a>
+
+          {navGroups.map(renderGroup)}
+
+          <div className="nav-divider" aria-hidden="true" />
+
+          {globalNav.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(`${item.href}/`));
             return (
               <a
                 href={item.href}
                 key={item.href}
-                className={isActive ? "active" : undefined}
+                className={item.href === activeLeaf ? "active" : undefined}
                 title={item.label}
               >
                 <Icon size={16} />
@@ -183,19 +327,15 @@ export function AppFrame({ children, profile }: { children: React.ReactNode; pro
               </a>
             );
           })}
+
+          <div className="nav-divider" aria-hidden="true" />
+
+          {renderGroup(settingsGroup)}
         </nav>
 
         <div className="nav-divider" aria-hidden="true" />
 
         <div className="account-menu">
-          <a
-            href="/settings"
-            className={`account-settings-link ${settingsRoots.some((root) => pathname === root || pathname?.startsWith(`${root}/`)) ? "active" : ""}`}
-            title="Settings"
-          >
-            <Settings size={16} />
-            <span>Settings</span>
-          </a>
           <a className="account-profile-link" href="/profile" title="Open profile">
             <span className="sidebar-avatar">{initials}</span>
             <span className="account-summary">
@@ -230,13 +370,15 @@ export function AppFrame({ children, profile }: { children: React.ReactNode; pro
               <Building2 size={15} />
               {workspace}
             </a>
-            <a className="btn primary" href="/campaigns/new">
+            <a className="btn primary" href="/sales/campaigns/new">
               <Sparkles size={16} /> New campaign
             </a>
           </div>
         </div>
         {children}
       </main>
+
+      <VelDock pathname={pathname} />
     </div>
   );
 }

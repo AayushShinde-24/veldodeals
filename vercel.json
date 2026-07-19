@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/advance-sequences",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/send-campaign-emails",
+      "schedule": "*/10 * * * *"
     }
   ]
 }

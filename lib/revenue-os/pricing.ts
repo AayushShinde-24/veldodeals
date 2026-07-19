@@ -240,9 +240,20 @@ export function creditsRequired(operation: keyof typeof creditCosts | string): n
 /** Hyper-personalized credits cost 25% more ($0.125 vs $0.10 per credit). */
 export const HYPER_PERSONALIZATION_MULTIPLIER = 1.25;
 
+/**
+ * Fundraising actions consume DOUBLE credits. This replaces the % success fee on
+ * raises (no cash cut is taken on fundraising — see lib/billing/deal-fees.ts), so
+ * the raise pillar earns its keep through consumption instead of a commission.
+ */
+export const FUNDRAISING_CREDIT_MULTIPLIER = 2;
+
+export type Pillar = "sales" | "marketing" | "fundraising";
+
 export interface CostOptions {
   hyperPersonalization?: boolean;
   quantity?: number;
+  /** Which pillar triggered the action; fundraising bills at 2x. */
+  pillar?: Pillar;
 }
 
 /**
@@ -256,7 +267,8 @@ export function computeCreditCost(
   const base = creditsRequired(operation);
   const quantity = Math.max(1, Math.floor(options.quantity ?? 1));
   const multiplier = options.hyperPersonalization ? HYPER_PERSONALIZATION_MULTIPLIER : 1;
-  return Math.ceil(base * quantity * multiplier);
+  const pillarMultiplier = options.pillar === "fundraising" ? FUNDRAISING_CREDIT_MULTIPLIER : 1;
+  return Math.ceil(base * quantity * multiplier * pillarMultiplier);
 }
 
 export function isWithinPlan(plan: PlanKey, usage: { campaigns: number; mailboxes: number }): boolean {

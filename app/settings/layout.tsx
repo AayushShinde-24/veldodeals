@@ -1,11 +1,11 @@
 "use client";
 
 import {
-  BarChart3,
+  Bell,
   Building2,
   CreditCard,
-  KeyRound,
-  Mail,
+  Database,
+  Gauge,
   ShieldCheck,
   Users,
   UserCircle,
@@ -16,13 +16,13 @@ import { usePathname } from "next/navigation";
 const settingsNav = [
   { href: "/profile", label: "Profile", icon: UserCircle },
   { href: "/workspace", label: "Workspace", icon: Building2 },
-  { href: "/settings/compliance", label: "Compliance", icon: ShieldCheck },
-  { href: "/settings/api-keys", label: "API Keys", icon: KeyRound },
-  { href: "/settings/integrations", label: "Integrations", icon: Plug },
-  { href: "/sending-accounts", label: "Sending", icon: Mail },
-  { href: "/settings/billing", label: "Billing", icon: CreditCard },
-  { href: "/team", label: "Team", icon: Users },
-  { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/team", label: "Team & Seats", icon: Users },
+  { href: "/settings/usage", label: "Usage", icon: Gauge },
+  { href: "/settings/billing", label: "Billing & Plans", icon: CreditCard },
+  { href: "/settings/integrations", label: "Connections", icon: Plug },
+  { href: "/settings/data", label: "Data & Memory", icon: Database },
+  { href: "/settings/compliance", label: "Security & Compliance", icon: ShieldCheck },
+  { href: "/settings/notifications", label: "Notifications", icon: Bell },
 ];
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
